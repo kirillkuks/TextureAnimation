@@ -33,6 +33,9 @@ private:
 	void RenderScene();
 	void RenderSceneTransparent();
 
+	HRESULT CreateAnimationTexturesResources();
+	void RenderTexture();
+
 	ID3D11VertexShader* CreateVertexShader(LPCTSTR shaderSource, ID3DBlob** ppBlob);
 	ID3D11PixelShader*  CreatePixelShader(LPCTSTR shaderSource);
 
@@ -81,6 +84,22 @@ private:
 	ID3D11DepthStencilState* m_pTransDepthState;
 
 	ID3D11RasterizerState* m_pRasterizerState;
+
+	/////////////////////////////////////////////
+
+	ID3D11Texture2D* m_pATDepth;
+	ID3D11DepthStencilView* m_pATDepthDSV;
+
+	ID3D11Texture2D* m_pAnimationTextureRenderTarget;
+	ID3D11RenderTargetView* m_pAnimationTextureRenderTargetRTV;
+	ID3D11ShaderResourceView* m_pAnimationTextureRenderTargetSRV;
+
+	ID3D11VertexShader* m_pAnimationTextureVertexShader;
+	ID3D11PixelShader* m_pAnimationTexturePixelShader;
+
+	ID3D11Buffer* m_pAnimationTextureVertexBuffer;
+	ID3D11Buffer* m_pAnimationTextureIndexBuffer;
+	ID3D11InputLayout* m_pAnimationTextureInputLayout;
 
 	UINT m_width;
 	UINT m_height;

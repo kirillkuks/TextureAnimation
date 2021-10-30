@@ -11,4 +11,9 @@ public:
 	~VectorField();
 
 	unsigned char* apply_field(unsigned char const* imageData, size_t x, size_t y, size_t n) const;
+
+	void invert();
+
+	void setCycleField();
+	void setHalfSpeedTransformField(int speed);
 };
