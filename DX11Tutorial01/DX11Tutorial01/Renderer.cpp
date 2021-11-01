@@ -27,7 +27,7 @@ static const UINT IndicesCount = 36;
 static const XMVECTORF32 TransPos1{ 2.5f, 0, 0 };
 static const XMVECTORF32 TransPos2{ 3.0f, 0.5f, 0.5f };
 
-#define SIZE 256
+#define SIZE 1920
 
 struct TextureVertex
 {
@@ -117,6 +117,7 @@ Renderer::Renderer()
 	, m_pAnimationTextureRenderTarget(NULL)
 	, m_pAnimationTextureRenderTargetRTV(NULL)
 	, m_pAnimationTextureRenderTargetSRV(NULL)
+	, m_pAnimationTextureSrcTexture(NULL)
 
 	, vectorField{ nullptr }
 	, image{ nullptr }
@@ -165,6 +166,15 @@ bool Renderer::Init(HWND hWnd)
 			D3D11_CREATE_DEVICE_DEBUG, levels, 1, D3D11_SDK_VERSION, &m_pDevice, &level, &m_pContext);
 		assert(level == D3D_FEATURE_LEVEL_11_0);
 		assert(SUCCEEDED(result));
+	}
+
+	if (SUCCEEDED(result))
+	{
+		ID3D11InfoQueue* pInfoQueue = nullptr;
+		result = m_pDevice->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)&pInfoQueue);
+		assert(SUCCEEDED(result));
+		pInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
+		pInfoQueue->Release();
 	}
 
 	// Create swapchain
@@ -331,7 +341,7 @@ bool Renderer::Update()
 	m_pContext->UpdateSubresource(m_pSceneBuffer, 0, NULL, &scb, 0, 0);
 
 	// if (elapSecForPeriod > 2)
-	{
+	/* {
 		unsigned char* newImageData = vectorField->apply_field(image->getImageData(), image->getWidth(), image->getHeight(), image->getComp());
 		assert(newImageData != nullptr);
 		assert(image->setNewImageData(newImageData));
@@ -346,7 +356,7 @@ bool Renderer::Update()
 
 		assert(SUCCEEDED(result));
 		m_psec = usec;
-	}
+	}*/
 
 	return true;
 }
@@ -367,6 +377,8 @@ bool Renderer::Render()
 		m_pContext->RSSetViewports(1, &viewport);
 		D3D11_RECT rect{ 0, 0, (LONG)SIZE, (LONG)SIZE };
 		m_pContext->RSSetScissorRects(1, &rect);
+
+
 
 		RenderTexture();
 	}
@@ -840,7 +852,7 @@ HRESULT Renderer::CreateScene()
 	{
 
 		int x, y, n;
-		unsigned char* pixels = stbi_load("Assets//figures.png", &x, &y, &n, 0);
+		unsigned char* pixels = stbi_load("Assets//figures1920.png", &x, &y, &n, 0);
 		assert(pixels != nullptr);
 
 		image = new Image(pixels, x, y, n);
@@ -857,9 +869,12 @@ HRESULT Renderer::CreateScene()
 
 		result = CreateWICTextureFromMemory(m_pDevice, m_pContext, png, len, (ID3D11Resource**)&m_pAnimationTextureSrcTexture, &m_pTextureCopySRV, NULL);
 		assert(SUCCEEDED(result));
+		D3D11_TEXTURE2D_DESC desc;
+		m_pAnimationTextureSrcTexture->GetDesc(&desc);
 
 		SAFE_RELEASE(m_pTextureCopySRV);
 		result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureSrcTexture, NULL, &m_pTextureCopySRV);
+
 		assert(SUCCEEDED(result));
 	}
 
@@ -1144,8 +1159,15 @@ void Renderer::RenderTexture()
 	m_pContext->RSSetState(m_pRasterizerState);
 	m_pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	static bool flag = false;
-	if (flag)
+	ID3D11ShaderResourceView* textures[1] = { m_pTextureCopySRV };
+
+	m_pContext->PSSetShaderResources(0, 1, textures);
+
+	ID3D11SamplerState* samplers[1] = { m_pSamplerState };
+	m_pContext->PSSetSamplers(0, 1, samplers);
+
+	m_pContext->DrawIndexed(6, 0, 0);
+
 	{
 		/*ID3D11Texture2D* texture2D = NULL;
 		D3D11_TEXTURE2D_DESC desc = {};
@@ -1181,16 +1203,6 @@ void Renderer::RenderTexture()
 		HRESULT result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureSrcTexture, NULL, &m_pTextureCopySRV);
 		assert(SUCCEEDED(result));
 	}
-	flag = true;
-
-	ID3D11ShaderResourceView* textures[1] = { m_pTextureCopySRV };
-
-	m_pContext->PSSetShaderResources(0, 1, textures);
-
-	ID3D11SamplerState* samplers[1] = { m_pSamplerState };
-	m_pContext->PSSetSamplers(0, 1, samplers);
-
-	m_pContext->DrawIndexed(6, 0, 0);
 }
 
 ID3D11VertexShader* Renderer::CreateVertexShader(LPCTSTR shaderSource, ID3DBlob** ppBlob)

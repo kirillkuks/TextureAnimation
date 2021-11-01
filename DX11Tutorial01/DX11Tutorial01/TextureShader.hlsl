@@ -27,6 +27,8 @@ VSOutput VS(in VSInput vertex)
 float4 PS(in VSOutput input) : SV_Target0
 {
 	float4 color = float4(0, 0, 0, 1);
-	color.rgb = Texture.Sample(Sampler, input.uv + float2(0, -0.1)).rgb;
+	float dy = -1 / 1920.0;
+
+	color.rgb = Texture.Sample(Sampler, input.uv + float2(0, dy)).rgb;
 	return color;
 }

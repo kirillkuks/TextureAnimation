@@ -473,6 +473,7 @@ static HRESULT CreateTextureFromWIC(_In_ ID3D11Device* d3dDevice,
             autogen = true;
         }
     }
+    autogen = false;
 
     // Create texture
     D3D11_TEXTURE2D_DESC desc;
