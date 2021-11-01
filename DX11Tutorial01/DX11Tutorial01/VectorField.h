@@ -16,4 +16,6 @@ public:
 
 	void setCycleField();
 	void setHalfSpeedTransformField(int speed);
+	void setDiagField(size_t turnsNum = 1);
+	void setCircleField();
 };

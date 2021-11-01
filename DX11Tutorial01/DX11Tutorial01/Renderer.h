@@ -101,6 +101,8 @@ private:
 	ID3D11Buffer* m_pAnimationTextureIndexBuffer;
 	ID3D11InputLayout* m_pAnimationTextureInputLayout;
 
+	ID3D11Texture2D* m_pAnimationTextureSrcTexture;
+
 	UINT m_width;
 	UINT m_height;
 
