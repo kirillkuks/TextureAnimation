@@ -1,11 +1,12 @@
 #include "VectorField.h"
 #include <fstream>
+#include <assert.h>
 
 VectorField::VectorField(size_t x, size_t y) : field(x, std::vector<std::pair<int, int>>(y, { 2, 0 })) {
-	// setHalfSpeedTransformField(3);
-	setDiagField(4);
-	setCycleField();
-	int a = 2 + 4;
+	setHalfSpeedTransformField(3);
+	// setDiagField(4);
+	// setCycleField();
+	// int a = 2 + 4;
 }
 
 VectorField::~VectorField() {}
@@ -28,8 +29,8 @@ unsigned char* VectorField::apply_field(unsigned char const* imageData, size_t x
 			size_t n_j = j + vec.second;
 
 			if (n_i < x && n_j < y) {
-				size_t n_ind = n * (n_j + n_i * y);
-				size_t ind = n * (j + i * y);
+				size_t n_ind = n * (n_j + n_i * x);
+				size_t ind = n * (j + i * x);
 
 				newImageData[n_ind + 0] = imageData[ind + 0];
 				newImageData[n_ind + 1] = imageData[ind + 1];
@@ -39,6 +40,26 @@ unsigned char* VectorField::apply_field(unsigned char const* imageData, size_t x
 	}
 
 	return newImageData;
+}
+
+float* VectorField::raw_data() const {
+	size_t x = field.size();
+	size_t y = field[0].size();
+
+	float* srcData = new float[2 * x * y];
+	assert(srcData);
+
+	for (size_t i = 0; i < x; ++i) {
+		for (size_t j = 0; j < y; ++j) {
+			float q = (float)field[i][j].first / (float)x;
+			float p = (float)field[i][j].second / (float)y;
+
+			srcData[2 * (j + i * x) + 0] = -(float)field[i][j].first / (float)x;
+			srcData[2 * (j + i * x) + 1] = -(float)field[i][j].second / (float)y;
+		}
+	}
+
+	return srcData;
 }
 
 void VectorField::invert() {

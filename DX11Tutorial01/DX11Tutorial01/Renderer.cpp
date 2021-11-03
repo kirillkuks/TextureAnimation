@@ -58,7 +58,8 @@ struct SceneBuffer
 	Light lights[4];
 };
 
-struct SimpleVertex {
+struct SimpleVertex
+{
 	XMVECTORF32 pos;
 	XMFLOAT2 uv;
 };
@@ -118,6 +119,7 @@ Renderer::Renderer()
 	, m_pAnimationTextureRenderTargetRTV(NULL)
 	, m_pAnimationTextureRenderTargetSRV(NULL)
 	, m_pAnimationTextureSrcTexture(NULL)
+	, m_pAnimationTextureVectorField(NULL)
 
 	, vectorField{ nullptr }
 	, image{ nullptr }
@@ -861,20 +863,33 @@ HRESULT Renderer::CreateScene()
 		unsigned char* png = stbi_write_png_to_mem(image->getImageData(), 0, x, y, n, &len);
 
 		vectorField = new VectorField(x, y);
-		// vectorField->invert();
-		// unsigned char* data = vectorField->apply_field(image->getImageData(), image->getWidth(), image->getHeight(), image->getComp());
+		{
+			D3D11_TEXTURE2D_DESC desc = {};
+			desc.Format = DXGI_FORMAT_R32G32_FLOAT;
+			desc.ArraySize = 1;
+			desc.MipLevels = 1;
+			desc.Usage = D3D11_USAGE_DEFAULT;
+			desc.Height = SIZE;
+			desc.Width = SIZE;
+			desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+			desc.CPUAccessFlags = 0;
+			desc.MiscFlags = 0;
+			desc.SampleDesc.Count = 1;
+			desc.SampleDesc.Quality = 0;
 
-		// delete png;
-		// png = stbi_write_png_to_mem(data, 0, (int)image->getWidth(), (int)image->getHeight(), (int)image->getComp(), &len);
+			D3D11_SUBRESOURCE_DATA initData = {};
+			initData.pSysMem = vectorField->raw_data();
+			initData.SysMemPitch = 2 * SIZE * sizeof(float);
+			initData.SysMemSlicePitch = 0;
+
+			result = m_pDevice->CreateTexture2D(&desc, &initData, &m_pAnimationTextureVectorField);
+			assert(SUCCEEDED(result));
+
+			result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureVectorField, NULL, &m_pAnimationTextureVectorFieldSRV);
+			assert(SUCCEEDED(result));
+		}
 
 		result = CreateWICTextureFromMemory(m_pDevice, m_pContext, png, len, (ID3D11Resource**)&m_pAnimationTextureSrcTexture, &m_pTextureCopySRV, NULL);
-		assert(SUCCEEDED(result));
-		D3D11_TEXTURE2D_DESC desc;
-		m_pAnimationTextureSrcTexture->GetDesc(&desc);
-
-		SAFE_RELEASE(m_pTextureCopySRV);
-		result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureSrcTexture, NULL, &m_pTextureCopySRV);
-
 		assert(SUCCEEDED(result));
 	}
 
@@ -1010,6 +1025,7 @@ void Renderer::DestroyScene()
 	SAFE_RELEASE(m_pAnimationTextureInputLayout);
 
 	SAFE_RELEASE(m_pAnimationTextureSrcTexture);
+	SAFE_RELEASE(m_pAnimationTextureVectorField);
 
 	delete vectorField;
 	delete image;
@@ -1159,9 +1175,9 @@ void Renderer::RenderTexture()
 	m_pContext->RSSetState(m_pRasterizerState);
 	m_pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	ID3D11ShaderResourceView* textures[1] = { m_pTextureCopySRV };
+	ID3D11ShaderResourceView* textures[2] = { m_pTextureCopySRV, m_pAnimationTextureVectorFieldSRV };
 
-	m_pContext->PSSetShaderResources(0, 1, textures);
+	m_pContext->PSSetShaderResources(0, 2, textures);
 
 	ID3D11SamplerState* samplers[1] = { m_pSamplerState };
 	m_pContext->PSSetSamplers(0, 1, samplers);
@@ -1169,35 +1185,6 @@ void Renderer::RenderTexture()
 	m_pContext->DrawIndexed(6, 0, 0);
 
 	{
-		/*ID3D11Texture2D* texture2D = NULL;
-		D3D11_TEXTURE2D_DESC desc = {};
-		ID3D11ShaderResourceView* textureSRV = NULL;
-
-		desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		desc.ArraySize = 1;
-		desc.MipLevels = 1;
-		desc.Usage = D3D11_USAGE_DEFAULT;
-		desc.Height = 256;
-		desc.Width = 256;
-		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		desc.CPUAccessFlags = 0;
-		desc.MiscFlags = 0;
-		desc.SampleDesc.Count = 1;
-		desc.SampleDesc.Quality = 0;
-
-		HRESULT result =  m_pDevice->CreateTexture2D(&desc, NULL, &texture2D);
-		assert(SUCCEEDED(result));
-
-		m_pContext->CopyResource(texture2D, m_pAnimationTextureRenderTarget);
-
-		result = m_pDevice->CreateShaderResourceView(texture2D, NULL, &textureSRV);
-		assert(SUCCEEDED(result));
-
-		texture = textureSRV;*/
-
-		// ID3D11Texture2D* res = NULL;
-		// m_pAnimationTextureRenderTargetSRV->GetResource((ID3D11Resource**)&res);
-
 		SAFE_RELEASE(m_pTextureCopySRV);
 		m_pContext->CopyResource(m_pAnimationTextureSrcTexture, m_pAnimationTextureRenderTarget);
 		HRESULT result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureSrcTexture, NULL, &m_pTextureCopySRV);

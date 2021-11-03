@@ -1,5 +1,7 @@
 texture2D Texture : register(t0);
 
+texture2D VectorField : register(t1);
+
 SamplerState Sampler : register(s0);
 
 struct VSInput
@@ -28,7 +30,10 @@ float4 PS(in VSOutput input) : SV_Target0
 {
 	float4 color = float4(0, 0, 0, 1);
 	float dy = -1 / 1920.0;
+	
+	float ddx = VectorField.Sample(Sampler, input.uv).r;
+	float ddy = VectorField.Sample(Sampler, input.uv).g;
 
-	color.rgb = Texture.Sample(Sampler, input.uv + float2(0, dy)).rgb;
+	color.rgb = Texture.Sample(Sampler, input.uv + float2(ddy, ddx)).rgb;
 	return color;
 }

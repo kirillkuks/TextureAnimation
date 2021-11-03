@@ -103,6 +103,9 @@ private:
 
 	ID3D11Texture2D* m_pAnimationTextureSrcTexture;
 
+	ID3D11Texture2D* m_pAnimationTextureVectorField;
+	ID3D11ShaderResourceView* m_pAnimationTextureVectorFieldSRV;
+
 	UINT m_width;
 	UINT m_height;
 
