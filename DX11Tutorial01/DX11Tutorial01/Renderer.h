@@ -3,8 +3,9 @@
 #include <d3d11.h>
 #include <dxgi.h>
 
-#include "VectorField.h"
 #include "Image.h"
+#include "PingPong.h"
+#include "VectorField.h"
 
 class Renderer
 {
@@ -33,6 +34,7 @@ private:
 	void RenderScene();
 	void RenderSceneTransparent();
 
+	HRESULT SetupAnimationTextureBuffer();
 	HRESULT CreateAnimationTexturesResources();
 	void RenderTexture();
 
@@ -63,9 +65,6 @@ private:
 	ID3D11Resource* m_pTextureNM;
 	ID3D11ShaderResourceView* m_pTextureNMSRV;
 
-	ID3D11Resource* m_pTextureCopy;
-	ID3D11ShaderResourceView* m_pTextureCopySRV;
-
 	ID3D11SamplerState* m_pSamplerState;
 
 	ID3D11Buffer* m_pModelBuffer;
@@ -87,12 +86,10 @@ private:
 
 	/////////////////////////////////////////////
 
+	ID3D11Resource* m_pTextureCopy;
+
 	ID3D11Texture2D* m_pATDepth;
 	ID3D11DepthStencilView* m_pATDepthDSV;
-
-	ID3D11Texture2D* m_pAnimationTextureRenderTarget;
-	ID3D11RenderTargetView* m_pAnimationTextureRenderTargetRTV;
-	ID3D11ShaderResourceView* m_pAnimationTextureRenderTargetSRV;
 
 	ID3D11VertexShader* m_pAnimationTextureVertexShader;
 	ID3D11PixelShader* m_pAnimationTexturePixelShader;
@@ -100,8 +97,6 @@ private:
 	ID3D11Buffer* m_pAnimationTextureVertexBuffer;
 	ID3D11Buffer* m_pAnimationTextureIndexBuffer;
 	ID3D11InputLayout* m_pAnimationTextureInputLayout;
-
-	ID3D11Texture2D* m_pAnimationTextureSrcTexture;
 
 	ID3D11Texture2D* m_pAnimationTextureVectorField;
 	ID3D11ShaderResourceView* m_pAnimationTextureVectorFieldSRV;
@@ -120,4 +115,8 @@ private:
 
 	VectorField* vectorField;
 	Image* image;
+
+	size_t imageSize;
+
+	PingPong* m_pPingPong;
 };

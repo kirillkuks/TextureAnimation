@@ -27,7 +27,7 @@ static const UINT IndicesCount = 36;
 static const XMVECTORF32 TransPos1{ 2.5f, 0, 0 };
 static const XMVECTORF32 TransPos2{ 3.0f, 0.5f, 0.5f };
 
-#define SIZE 1920
+// #define SIZE 1920
 
 struct TextureVertex
 {
@@ -90,7 +90,6 @@ Renderer::Renderer()
 	, m_pTextureNMSRV(NULL)
 
 	, m_pTextureCopy(NULL)
-	, m_pTextureCopySRV(NULL)
 
 	, m_pSamplerState(NULL)
 	, m_pModelBuffer(NULL)
@@ -115,14 +114,12 @@ Renderer::Renderer()
 	, m_pATDepth(NULL)
 	, m_pATDepthDSV(NULL)
 
-	, m_pAnimationTextureRenderTarget(NULL)
-	, m_pAnimationTextureRenderTargetRTV(NULL)
-	, m_pAnimationTextureRenderTargetSRV(NULL)
-	, m_pAnimationTextureSrcTexture(NULL)
 	, m_pAnimationTextureVectorField(NULL)
+
 
 	, vectorField{ nullptr }
 	, image{ nullptr }
+	, m_pPingPong{ nullptr }
 {
 }
 
@@ -342,24 +339,6 @@ bool Renderer::Update()
 
 	m_pContext->UpdateSubresource(m_pSceneBuffer, 0, NULL, &scb, 0, 0);
 
-	// if (elapSecForPeriod > 2)
-	/* {
-		unsigned char* newImageData = vectorField->apply_field(image->getImageData(), image->getWidth(), image->getHeight(), image->getComp());
-		assert(newImageData != nullptr);
-		assert(image->setNewImageData(newImageData));
-
-		int len;
-		unsigned char* png = stbi_write_png_to_mem(newImageData, 0, (int)image->getWidth(), (int)image->getHeight(), (int)image->getComp(), &len);
-		assert(png != nullptr);
-
-		SAFE_RELEASE(m_pTextureCopySRV);
-		HRESULT result = CreateWICTextureFromMemory(m_pDevice, m_pContext, png, len, nullptr, &m_pTextureCopySRV, NULL);
-		delete png;
-
-		assert(SUCCEEDED(result));
-		m_psec = usec;
-	}*/
-
 	return true;
 }
 
@@ -368,19 +347,17 @@ bool Renderer::Render()
 	m_pContext->ClearState();
 
 	{
-		ID3D11RenderTargetView* views[] = { m_pAnimationTextureRenderTargetRTV };
+		ID3D11RenderTargetView* views[] = { m_pPingPong->RenderTargetView() };
 		m_pContext->OMSetRenderTargets(1, views, m_pATDepthDSV);
 
 		static const FLOAT backColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-		m_pContext->ClearRenderTargetView(m_pAnimationTextureRenderTargetRTV, backColor);
+		m_pContext->ClearRenderTargetView(m_pPingPong->RenderTargetView(), backColor);
 		m_pContext->ClearDepthStencilView(m_pATDepthDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-		D3D11_VIEWPORT viewport{ 0, 0, (float)SIZE, (float)SIZE, 0.0f, 1.0f };
+		D3D11_VIEWPORT viewport{ 0, 0, (float)image->Width(), (float)image->Height(), 0.0f, 1.0f };
 		m_pContext->RSSetViewports(1, &viewport);
-		D3D11_RECT rect{ 0, 0, (LONG)SIZE, (LONG)SIZE };
+		D3D11_RECT rect{ 0, 0, (LONG)image->Width(), (LONG)image->Height() };
 		m_pContext->RSSetScissorRects(1, &rect);
-
-
 
 		RenderTexture();
 	}
@@ -470,30 +447,33 @@ HRESULT Renderer::SetupBackBuffer()
 		}
 	}
 
+	return result;
+}
+
+HRESULT Renderer::SetupAnimationTextureBuffer()
+{
+	D3D11_TEXTURE2D_DESC depthDesc = {};
+	depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depthDesc.ArraySize = 1;
+	depthDesc.MipLevels = 1;
+	depthDesc.Usage = D3D11_USAGE_DEFAULT;
+	depthDesc.Height = image->Height();
+	depthDesc.Width = image->Width();
+	depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	depthDesc.CPUAccessFlags = 0;
+	depthDesc.MiscFlags = 0;
+	depthDesc.SampleDesc.Count = 1;
+	depthDesc.SampleDesc.Quality = 0;
+
+	HRESULT result = m_pDevice->CreateTexture2D(&depthDesc, NULL, &m_pATDepth);
+
 	if (SUCCEEDED(result))
 	{
-		D3D11_TEXTURE2D_DESC depthDesc = {};
-		depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		depthDesc.ArraySize = 1;
-		depthDesc.MipLevels = 1;
-		depthDesc.Usage = D3D11_USAGE_DEFAULT;
-		depthDesc.Height = SIZE;
-		depthDesc.Width = SIZE;
-		depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-		depthDesc.CPUAccessFlags = 0;
-		depthDesc.MiscFlags = 0;
-		depthDesc.SampleDesc.Count = 1;
-		depthDesc.SampleDesc.Quality = 0;
-
-		result = m_pDevice->CreateTexture2D(&depthDesc, NULL, &m_pATDepth);
-
-		if (SUCCEEDED(result))
-		{
-			result = m_pDevice->CreateDepthStencilView(m_pATDepth, NULL, &m_pATDepthDSV);
-		}
-
-		assert(SUCCEEDED(result));
+		result = m_pDevice->CreateDepthStencilView(m_pATDepth, NULL, &m_pATDepthDSV);
 	}
+
+	assert(SUCCEEDED(result));
+
 	if (SUCCEEDED(result))
 	{
 		D3D11_TEXTURE2D_DESC depthDesc = {};
@@ -501,26 +481,32 @@ HRESULT Renderer::SetupBackBuffer()
 		depthDesc.ArraySize = 1;
 		depthDesc.MipLevels = 1;
 		depthDesc.Usage = D3D11_USAGE_DEFAULT;
-		depthDesc.Height = SIZE; // ???
-		depthDesc.Width = SIZE; // ???
+		depthDesc.Height = image->Height();
+		depthDesc.Width = image->Width();
 		depthDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 		depthDesc.CPUAccessFlags = 0;
 		depthDesc.MiscFlags = 0;
 		depthDesc.SampleDesc.Count = 1;
 		depthDesc.SampleDesc.Quality = 0;
 
-		result = m_pDevice->CreateTexture2D(&depthDesc, NULL, &m_pAnimationTextureRenderTarget);
+		ID3D11Texture2D* pTextureRenderTarget(nullptr);
+		ID3D11RenderTargetView* pTextureRenderTargetRTV(nullptr);
+		ID3D11ShaderResourceView* pTextureRenderTargetSRV(nullptr);
+
+		result = m_pDevice->CreateTexture2D(&depthDesc, NULL, &pTextureRenderTarget);
 
 		if (SUCCEEDED(result))
 		{
-			result = m_pDevice->CreateRenderTargetView(m_pAnimationTextureRenderTarget, NULL, &m_pAnimationTextureRenderTargetRTV);
+			result = m_pDevice->CreateRenderTargetView(pTextureRenderTarget, NULL, &pTextureRenderTargetRTV);
 		}
 		if (SUCCEEDED(result))
 		{
-			result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureRenderTarget, NULL, &m_pAnimationTextureRenderTargetSRV);
+			result = m_pDevice->CreateShaderResourceView(pTextureRenderTarget, NULL, &pTextureRenderTargetSRV);
 		}
 
 		assert(SUCCEEDED(result));
+
+		m_pPingPong->SetupResources(PingPong::ResourceType::TARGET, pTextureRenderTarget, pTextureRenderTargetRTV, pTextureRenderTargetSRV);
 	}
 
 	return result;
@@ -852,9 +838,11 @@ HRESULT Renderer::CreateScene()
 	}
 	if (SUCCEEDED(result))
 	{
+		m_pPingPong = new PingPong();
+		assert(m_pPingPong);
 
 		int x, y, n;
-		unsigned char* pixels = stbi_load("Assets//figures1920.png", &x, &y, &n, 0);
+		unsigned char* pixels = stbi_load("Assets//lines3.png", &x, &y, &n, 0);
 		assert(pixels != nullptr);
 
 		image = new Image(pixels, x, y, n);
@@ -869,8 +857,8 @@ HRESULT Renderer::CreateScene()
 			desc.ArraySize = 1;
 			desc.MipLevels = 1;
 			desc.Usage = D3D11_USAGE_DEFAULT;
-			desc.Height = SIZE;
-			desc.Width = SIZE;
+			desc.Height = image->Height();
+			desc.Width = image->Width();
 			desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 			desc.CPUAccessFlags = 0;
 			desc.MiscFlags = 0;
@@ -879,18 +867,38 @@ HRESULT Renderer::CreateScene()
 
 			D3D11_SUBRESOURCE_DATA initData = {};
 			initData.pSysMem = vectorField->raw_data();
-			initData.SysMemPitch = 2 * SIZE * sizeof(float);
+			initData.SysMemPitch = 2u * image->Width() * sizeof(float);
 			initData.SysMemSlicePitch = 0;
 
 			result = m_pDevice->CreateTexture2D(&desc, &initData, &m_pAnimationTextureVectorField);
 			assert(SUCCEEDED(result));
 
-			result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureVectorField, NULL, &m_pAnimationTextureVectorFieldSRV);
+			if (SUCCEEDED(result))
+			{
+				result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureVectorField, NULL, &m_pAnimationTextureVectorFieldSRV);
+			}
+
 			assert(SUCCEEDED(result));
 		}
 
-		result = CreateWICTextureFromMemory(m_pDevice, m_pContext, png, len, (ID3D11Resource**)&m_pAnimationTextureSrcTexture, &m_pTextureCopySRV, NULL);
-		assert(SUCCEEDED(result));
+		{
+			ID3D11Texture2D* pTextureSrc(nullptr);
+			ID3D11RenderTargetView* pTextureSrcRTV(nullptr);
+			ID3D11ShaderResourceView* pTextureSrcSRV(nullptr);
+
+			result = CreateWICTextureFromMemory(m_pDevice, m_pContext, png, len, (ID3D11Resource**)&pTextureSrc, &pTextureSrcSRV, NULL);
+
+			if (SUCCEEDED(result))
+			{
+				result = m_pDevice->CreateRenderTargetView(pTextureSrc, NULL, &pTextureSrcRTV);
+			}
+			assert(SUCCEEDED(result));
+
+			m_pPingPong->SetupResources(PingPong::ResourceType::SOURCE, pTextureSrc, pTextureSrcRTV, pTextureSrcSRV);
+		}
+	}
+	if (SUCCEEDED(result)) {
+		SetupAnimationTextureBuffer();
 	}
 
 	return result;
@@ -996,7 +1004,6 @@ void Renderer::DestroyScene()
 	SAFE_RELEASE(m_pTexture);
 
 	SAFE_RELEASE(m_pTextureCopy);
-	SAFE_RELEASE(m_pTextureCopySRV);
 
 	SAFE_RELEASE(m_pRasterizerState);
 	SAFE_RELEASE(m_pModelBuffer2);
@@ -1013,9 +1020,6 @@ void Renderer::DestroyScene()
 
 	SAFE_RELEASE(m_pATDepth);
 	SAFE_RELEASE(m_pATDepthDSV);
-	SAFE_RELEASE(m_pAnimationTextureRenderTarget);
-	SAFE_RELEASE(m_pAnimationTextureRenderTargetRTV);
-	SAFE_RELEASE(m_pAnimationTextureRenderTargetSRV);
 
 	SAFE_RELEASE(m_pAnimationTextureVertexShader);
 	SAFE_RELEASE(m_pAnimationTexturePixelShader);
@@ -1024,11 +1028,12 @@ void Renderer::DestroyScene()
 	SAFE_RELEASE(m_pAnimationTextureIndexBuffer);
 	SAFE_RELEASE(m_pAnimationTextureInputLayout);
 
-	SAFE_RELEASE(m_pAnimationTextureSrcTexture);
 	SAFE_RELEASE(m_pAnimationTextureVectorField);
+	SAFE_RELEASE(m_pAnimationTextureVectorFieldSRV);
 
 	delete vectorField;
 	delete image;
+	delete m_pPingPong;
 }
 
 void Renderer::RenderScene()
@@ -1058,7 +1063,7 @@ void Renderer::RenderScene()
 	m_pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// ID3D11ShaderResourceView* textures[] = {m_pTextureCopySRV, m_pTextureNMSRV};
-	ID3D11ShaderResourceView* textures[] = {m_pAnimationTextureRenderTargetSRV, m_pTextureNMSRV};
+	ID3D11ShaderResourceView* textures[] = {m_pPingPong->TargetSRV(), m_pTextureNMSRV};
 	m_pContext->PSSetShaderResources(0, 2, textures);
 
 	ID3D11SamplerState* samplers[] = {m_pSamplerState};
@@ -1175,7 +1180,8 @@ void Renderer::RenderTexture()
 	m_pContext->RSSetState(m_pRasterizerState);
 	m_pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	ID3D11ShaderResourceView* textures[2] = { m_pTextureCopySRV, m_pAnimationTextureVectorFieldSRV };
+	//assert(m_pPingPong->SourceSRV() == m_pTextureCopySRV);
+	ID3D11ShaderResourceView* textures[2] = { m_pPingPong->SourceSRV(), m_pAnimationTextureVectorFieldSRV };
 
 	m_pContext->PSSetShaderResources(0, 2, textures);
 
@@ -1185,10 +1191,12 @@ void Renderer::RenderTexture()
 	m_pContext->DrawIndexed(6, 0, 0);
 
 	{
-		SAFE_RELEASE(m_pTextureCopySRV);
-		m_pContext->CopyResource(m_pAnimationTextureSrcTexture, m_pAnimationTextureRenderTarget);
-		HRESULT result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureSrcTexture, NULL, &m_pTextureCopySRV);
-		assert(SUCCEEDED(result));
+		// SAFE_RELEASE(m_pTextureCopySRV);
+		// m_pContext->CopyResource(m_pAnimationTextureSrcTexture, m_pAnimationTextureRenderTarget);
+		// HRESULT result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureSrcTexture, NULL, &m_pTextureCopySRV);
+		// m_pPingPong->SetupResources(PingPong::ResourceType::SOURCE, m_pAnimationTextureSrcTexture, NULL, m_pTextureCopySRV);
+		// assert(SUCCEEDED(result));
+		m_pPingPong->Swap();
 	}
 }
 

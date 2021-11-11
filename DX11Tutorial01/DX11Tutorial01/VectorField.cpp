@@ -2,9 +2,9 @@
 #include <fstream>
 #include <assert.h>
 
-VectorField::VectorField(size_t x, size_t y) : field(x, std::vector<std::pair<int, int>>(y, { 2, 0 })) {
-	setHalfSpeedTransformField(3);
-	// setDiagField(4);
+VectorField::VectorField(size_t x, size_t y) : field(x, std::vector<std::pair<int, int>>(y, { 1, 0 })) {
+	// setHalfSpeedTransformField(2);
+	setDiagField(4);
 	// setCycleField();
 	// int a = 2 + 4;
 }
@@ -136,24 +136,3 @@ void VectorField::setDiagField(size_t turnsNum) {
 	}
 }
 
-void VectorField::setCircleField() {
-	size_t x = field.size();
-	size_t y = field[0].size();
-
-	int centerX = (x - 1) / 2;
-	int centerY = (y - 1) / 2;
-
-
-	for (size_t i = 0; i < x; ++i) {
-		for (size_t j = 0; j < y; ++j) {
-			int x1 = i - centerX;
-			int y1 = j - centerY;
-
-			int x2 = -y1;
-			int y2 = x1;
-
-			field[i][j].first = x2 + centerX;
-			field[i][j].second = y2 + centerY;
-		}
-	}
-}
