@@ -77,7 +77,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
        }
 
        g_pRenderer->Update();
-       g_pRenderer->Render();
+       // g_pRenderer->Render();
     }
 
     g_pRenderer->Term();

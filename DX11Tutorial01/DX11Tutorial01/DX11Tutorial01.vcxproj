@@ -82,6 +82,7 @@
   <ItemGroup>
     <ClInclude Include="DDSTextureLoader11.h" />
     <ClInclude Include="DX11Tutorial01.h" />
+    <ClInclude Include="FieldSwapper.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Image.h" />
     <ClInclude Include="PingPong.h" />
@@ -96,6 +97,7 @@
   <ItemGroup>
     <ClCompile Include="DDSTextureLoader11.cpp" />
     <ClCompile Include="DX11Tutorial01.cpp" />
+    <ClCompile Include="FieldSwapper.cpp" />
     <ClCompile Include="Image.cpp" />
     <ClCompile Include="PingPong.cpp" />
     <ClCompile Include="Renderer.cpp" />

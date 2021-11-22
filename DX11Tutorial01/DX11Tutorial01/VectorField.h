@@ -3,8 +3,9 @@
 
 class VectorField
 {
+	using elem_t = std::pair<int, int>;
 private:
-	std::vector<std::vector<std::pair<int, int>>> field;
+	std::vector<std::vector<elem_t>> field;
 
 public:
 	VectorField(size_t x, size_t y);
@@ -14,9 +15,12 @@ public:
 	float* raw_data() const;
 
 	void invert();
+	void inv();
 
 	void setCycleField();
 	void setHalfSpeedTransformField(int speed);
 	void setDiagField(size_t turnsNum = 1);
 	void setCircleField();
+	void setSinField();
+	void setField();
 };

@@ -6,6 +6,7 @@
 #include "Image.h"
 #include "PingPong.h"
 #include "VectorField.h"
+#include "FieldSwapper.h"
 
 class Renderer
 {
@@ -36,6 +37,7 @@ private:
 
 	HRESULT SetupAnimationTextureBuffer();
 	HRESULT CreateAnimationTexturesResources();
+	HRESULT CreateVectorFieldTexture();
 	void RenderTexture();
 
 	ID3D11VertexShader* CreateVertexShader(LPCTSTR shaderSource, ID3DBlob** ppBlob);
@@ -86,6 +88,8 @@ private:
 
 	/////////////////////////////////////////////
 
+	ID3D11Buffer* m_pConstantBuffer;
+
 	ID3D11Resource* m_pTextureCopy;
 
 	ID3D11Texture2D* m_pATDepth;
@@ -107,6 +111,10 @@ private:
 	size_t m_usec;
 	size_t m_psec;
 
+	size_t m_esec = 0;
+
+	float m_frameLength = 1.0f / 60.0f;
+
 	float m_lon;
 	float m_lat;
 	float m_dist;
@@ -119,4 +127,5 @@ private:
 	size_t imageSize;
 
 	PingPong* m_pPingPong;
+	FieldSwapper* m_pFieldSwapper;
 };

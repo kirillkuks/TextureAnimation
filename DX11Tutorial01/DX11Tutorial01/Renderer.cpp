@@ -64,6 +64,11 @@ struct SimpleVertex
 	XMFLOAT2 uv;
 };
 
+struct ConstantBuffer
+{
+	XMVECTORI32 secs; // x - scale
+};
+
 #define SAFE_RELEASE(p) \
 if (p != NULL) { \
 	p->Release(); \
@@ -116,10 +121,12 @@ Renderer::Renderer()
 
 	, m_pAnimationTextureVectorField(NULL)
 
+	, m_pConstantBuffer(NULL)
 
 	, vectorField{ nullptr }
 	, image{ nullptr }
 	, m_pPingPong{ nullptr }
+	, m_pFieldSwapper { nullptr }
 {
 }
 
@@ -282,8 +289,29 @@ bool Renderer::Update()
 		m_psec = usec;
 	}
 
+	if (m_esec == 0)
+	{
+		m_esec = usec;
+	}
+
+	double elapsedSecForPeriod = (usec - m_esec) / 1000000.0;
+	if (elapsedSecForPeriod < m_frameLength)
+	{
+		return true;
+	}
+
+	{
+		m_pFieldSwapper->IncStep();
+	}
+
+	m_esec = 0;
+
 	double elapsedSec = (usec - m_usec) / 1000000.0;
 	double elapSecForPeriod = (usec - m_psec) / 1000000.0;
+
+	ConstantBuffer cb1;
+	cb1.secs = { (int)((float)elapsedSecForPeriod / m_frameLength), 0, 0, 0 };
+	m_pContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &cb1, 0, 0);
 
 	ModelBuffer cb;
 	XMMATRIX m = XMMatrixRotationAxis({ 0,1,0 }, (float)elapsedSec * 0.5f);
@@ -339,7 +367,7 @@ bool Renderer::Update()
 
 	m_pContext->UpdateSubresource(m_pSceneBuffer, 0, NULL, &scb, 0, 0);
 
-	return true;
+	return Render();
 }
 
 bool Renderer::Render()
@@ -783,6 +811,21 @@ HRESULT Renderer::CreateScene()
 		}
 	}
 
+	if (SUCCEEDED(result))
+	{
+		D3D11_BUFFER_DESC cbDesc = { 0 };
+		cbDesc.ByteWidth = sizeof(ConstantBuffer);
+		cbDesc.Usage = D3D11_USAGE_DEFAULT;
+		cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		cbDesc.CPUAccessFlags = 0;
+		cbDesc.MiscFlags = 0;
+		cbDesc.StructureByteStride = 0;
+
+		result = m_pDevice->CreateBuffer(&cbDesc, NULL, &m_pConstantBuffer);
+
+		assert(SUCCEEDED(result));
+	}
+
 	// Create scene constant buffer
 	if (SUCCEEDED(result))
 	{
@@ -842,7 +885,7 @@ HRESULT Renderer::CreateScene()
 		assert(m_pPingPong);
 
 		int x, y, n;
-		unsigned char* pixels = stbi_load("Assets//lines3.png", &x, &y, &n, 0);
+		unsigned char* pixels = stbi_load("Assets//line2048.png", &x, &y, &n, 0);
 		assert(pixels != nullptr);
 
 		image = new Image(pixels, x, y, n);
@@ -850,35 +893,19 @@ HRESULT Renderer::CreateScene()
 		int len;
 		unsigned char* png = stbi_write_png_to_mem(image->getImageData(), 0, x, y, n, &len);
 
-		vectorField = new VectorField(x, y);
+
 		{
-			D3D11_TEXTURE2D_DESC desc = {};
-			desc.Format = DXGI_FORMAT_R32G32_FLOAT;
-			desc.ArraySize = 1;
-			desc.MipLevels = 1;
-			desc.Usage = D3D11_USAGE_DEFAULT;
-			desc.Height = image->Height();
-			desc.Width = image->Width();
-			desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-			desc.CPUAccessFlags = 0;
-			desc.MiscFlags = 0;
-			desc.SampleDesc.Count = 1;
-			desc.SampleDesc.Quality = 0;
+			vectorField = new VectorField(x, y);
+			assert(vectorField);
+			m_pFieldSwapper = new FieldSwapper();
+			assert(m_pFieldSwapper);
 
-			D3D11_SUBRESOURCE_DATA initData = {};
-			initData.pSysMem = vectorField->raw_data();
-			initData.SysMemPitch = 2u * image->Width() * sizeof(float);
-			initData.SysMemSlicePitch = 0;
+			CreateVectorFieldTexture();
 
-			result = m_pDevice->CreateTexture2D(&desc, &initData, &m_pAnimationTextureVectorField);
-			assert(SUCCEEDED(result));
+			vectorField->inv();
+			CreateVectorFieldTexture();
 
-			if (SUCCEEDED(result))
-			{
-				result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureVectorField, NULL, &m_pAnimationTextureVectorFieldSRV);
-			}
-
-			assert(SUCCEEDED(result));
+			m_pFieldSwapper->SetUpStepPerFiled({ 7, 12 });
 		}
 
 		{
@@ -900,6 +927,41 @@ HRESULT Renderer::CreateScene()
 	if (SUCCEEDED(result)) {
 		SetupAnimationTextureBuffer();
 	}
+
+	return result;
+}
+
+HRESULT Renderer::CreateVectorFieldTexture()
+{
+	D3D11_TEXTURE2D_DESC desc = {};
+	desc.Format = DXGI_FORMAT_R32G32_FLOAT;
+	desc.ArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Usage = D3D11_USAGE_DEFAULT;
+	desc.Height = image->Height();
+	desc.Width = image->Width();
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	desc.CPUAccessFlags = 0;
+	desc.MiscFlags = 0;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+
+	D3D11_SUBRESOURCE_DATA initData = {};
+	initData.pSysMem = vectorField->raw_data();
+	initData.SysMemPitch = 2u * image->Width() * sizeof(float);
+	initData.SysMemSlicePitch = 0;
+
+	HRESULT result = m_pDevice->CreateTexture2D(&desc, &initData, &m_pAnimationTextureVectorField);
+	assert(SUCCEEDED(result));
+
+	if (SUCCEEDED(result))
+	{
+		result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureVectorField, NULL, &m_pAnimationTextureVectorFieldSRV);
+	}
+
+	assert(SUCCEEDED(result));
+
+	m_pFieldSwapper->AddField(m_pAnimationTextureVectorField, m_pAnimationTextureVectorFieldSRV);
 
 	return result;
 }
@@ -1028,12 +1090,15 @@ void Renderer::DestroyScene()
 	SAFE_RELEASE(m_pAnimationTextureIndexBuffer);
 	SAFE_RELEASE(m_pAnimationTextureInputLayout);
 
-	SAFE_RELEASE(m_pAnimationTextureVectorField);
-	SAFE_RELEASE(m_pAnimationTextureVectorFieldSRV);
+	SAFE_RELEASE(m_pConstantBuffer);
+
+	// SAFE_RELEASE(m_pAnimationTextureVectorField);
+	// SAFE_RELEASE(m_pAnimationTextureVectorFieldSRV);
 
 	delete vectorField;
 	delete image;
 	delete m_pPingPong;
+	delete m_pFieldSwapper;
 }
 
 void Renderer::RenderScene()
@@ -1181,23 +1246,20 @@ void Renderer::RenderTexture()
 	m_pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	//assert(m_pPingPong->SourceSRV() == m_pTextureCopySRV);
-	ID3D11ShaderResourceView* textures[2] = { m_pPingPong->SourceSRV(), m_pAnimationTextureVectorFieldSRV };
+	// m_pFieldSwapper->CurrentVectorFieldSRV();
+	ID3D11ShaderResourceView* textures[2] = { m_pPingPong->SourceSRV(), m_pFieldSwapper->CurrentVectorFieldSRV() };
 
 	m_pContext->PSSetShaderResources(0, 2, textures);
 
 	ID3D11SamplerState* samplers[1] = { m_pSamplerState };
 	m_pContext->PSSetSamplers(0, 1, samplers);
 
+	ID3D11Buffer* constBuffers[] = { m_pConstantBuffer };
+	m_pContext->PSSetConstantBuffers(0, 1, constBuffers);
+
 	m_pContext->DrawIndexed(6, 0, 0);
 
-	{
-		// SAFE_RELEASE(m_pTextureCopySRV);
-		// m_pContext->CopyResource(m_pAnimationTextureSrcTexture, m_pAnimationTextureRenderTarget);
-		// HRESULT result = m_pDevice->CreateShaderResourceView(m_pAnimationTextureSrcTexture, NULL, &m_pTextureCopySRV);
-		// m_pPingPong->SetupResources(PingPong::ResourceType::SOURCE, m_pAnimationTextureSrcTexture, NULL, m_pTextureCopySRV);
-		// assert(SUCCEEDED(result));
-		m_pPingPong->Swap();
-	}
+	m_pPingPong->Swap();
 }
 
 ID3D11VertexShader* Renderer::CreateVertexShader(LPCTSTR shaderSource, ID3DBlob** ppBlob)
@@ -1221,6 +1283,7 @@ ID3D11VertexShader* Renderer::CreateVertexShader(LPCTSTR shaderSource, ID3DBlob*
 
 		ID3DBlob* pError = NULL;
 		HRESULT result = D3DCompile(pSourceCode, size, "", NULL, NULL, "VS", "vs_5_0", 0, 0, ppBlob, &pError);
+		assert(SUCCEEDED(result));
 		if (!SUCCEEDED(result))
 		{
 			const char *pMsg = (const char*)pError->GetBufferPointer();
@@ -1229,12 +1292,10 @@ ID3D11VertexShader* Renderer::CreateVertexShader(LPCTSTR shaderSource, ID3DBlob*
 		else
 		{
 			result = m_pDevice->CreateVertexShader((*ppBlob)->GetBufferPointer(), (*ppBlob)->GetBufferSize(), NULL, &pVertexShader);
-			assert(SUCCEEDED(result));
 		}
 
 		SAFE_RELEASE(pError);
 	}
-
 	return pVertexShader;
 }
 
@@ -1260,6 +1321,7 @@ ID3D11PixelShader* Renderer::CreatePixelShader(LPCTSTR shaderSource)
 		ID3DBlob* pBlob = NULL;
 		ID3DBlob* pError = NULL;
 		HRESULT result = D3DCompile(pSourceCode, size, "", NULL, NULL, "PS", "ps_5_0", 0, 0, &pBlob, &pError);
+		assert(SUCCEEDED(result));
 		if (!SUCCEEDED(result))
 		{
 			const char* pMsg = (const char*)pError->GetBufferPointer();
@@ -1274,6 +1336,5 @@ ID3D11PixelShader* Renderer::CreatePixelShader(LPCTSTR shaderSource)
 		SAFE_RELEASE(pError);
 		SAFE_RELEASE(pBlob);
 	}
-
 	return pPixelShader;
 }

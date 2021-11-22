@@ -57,14 +57,14 @@ float4 PS(in VSOutput input) : SV_Target0
 	float4 color = float4(0,0,0,1);
 	// return color;
 
-	int lightCount = lightParams.x;
-	int mode = lightParams.y;
+	/*int lightCount = lightParams.x;
+	int mode = lightParams.y;*/
 
 	float3 matColor = ColorTexture.Sample(Sampler, input.uv);
 	color.xyz += matColor;
 	return color;
 
-	float3 nm = (NormalTexture.Sample(Sampler, input.uv) - float3(0.5, 0.5, 0.5)) * 2.0;
+	/*float3 nm = (NormalTexture.Sample(Sampler, input.uv) - float3(0.5, 0.5, 0.5)) * 2.0;
 	
 	float3 binormal = cross(input.normal, input.tangent);
 	
@@ -92,5 +92,5 @@ float4 PS(in VSOutput input) : SV_Target0
 	
 	//color.xyz = 0.5 * (normal + float3(1,1,1));
 
-	return color;
+	return color;*/
 }

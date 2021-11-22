@@ -1,3 +1,8 @@
+cbuffer ConstantBuffer : register(b0)
+{
+	int4 secs;
+}
+
 texture2D Texture : register(t0);
 
 texture2D VectorField : register(t1);
@@ -33,6 +38,22 @@ float4 PS(in VSOutput input) : SV_Target0
 	float ddx = VectorField.Sample(Sampler, input.uv).r;
 	float ddy = VectorField.Sample(Sampler, input.uv).g;
 
-	color.rgb = Texture.Sample(Sampler, input.uv + float2(ddy, ddx)).rgb;
+	// float d = 1 / 2048.0;
+	int scale = secs.x;
+
+	color.rgb = Texture.Sample(Sampler, input.uv + scale * float2(ddy, ddx)).rgb;
+
+	/*color.rgb = (Texture.Sample(Sampler, input.uv) +
+		( ddx * 2048.0 * (Texture.Sample(Sampler, input.uv + float2(0, d)) - Texture.Sample(Sampler, input.uv + float2(0, -d))) ) +
+		( ddy * 2048.0 * (Texture.Sample(Sampler, input.uv + float2(d, 0)) - Texture.Sample(Sampler, input.uv + float2(-d, 0))) )).rgb;*/
+
+
+
+	/*color.rgb = Texture.Sample(Sampler, input.uv) -
+		(ddy / 4.0 * (-Texture.Sample(Sampler, input.uv + float2(2 * d, 0)) + 4 * Texture.Sample(Sampler, input.uv + float2(d, 0)) - 4 * Texture.Sample(Sampler, input.uv + float2(-d, 0)) + Texture.Sample(Sampler, input.uv + float2(-2 * d, 0)))) +
+		(ddy / 12.0 * (Texture.Sample(Sampler, input.uv + float2(2 * d, 0)) - 4 * Texture.Sample(Sampler, input.uv + float2(d, 0)) + 6 * Texture.Sample(Sampler, input.uv) - 4 * Texture.Sample(Sampler, input.uv + float2(-d, 0)) + Texture.Sample(Sampler, +float2(-2 * d, 0)))) +
+		(ddx / 4.0 * (-Texture.Sample(Sampler, input.uv + float2(0, 2 * d)) + 4 * Texture.Sample(Sampler, input.uv + float2(0, d)) - 4 * Texture.Sample(Sampler, input.uv + float2(0, -d)) + Texture.Sample(Sampler, input.uv + float2(0, -2 * d)))) +
+		(ddx / 12.0 * (Texture.Sample(Sampler, input.uv + float2(0, 2 * d)) - 4 * Texture.Sample(Sampler, input.uv + float2(0, d)) + 6 * Texture.Sample(Sampler, input.uv) - 4 * Texture.Sample(Sampler, input.uv + float2(0, -d)) + Texture.Sample(Sampler, +float2(0, -2 * d))));*/
+
 	return color;
 }
