@@ -1,6 +1,7 @@
 #include "Renderer.h"
 
 #include <stdio.h>
+#include <sstream>
 #include <tchar.h>
 #include <assert.h>
 #include <DirectXMath.h>
@@ -12,6 +13,9 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image.h"
 #include "stb_image_write.h"
+#include "tiny_gltf.h"
+
+#include "Model.h"
 
 #include <fstream>
 #include <vector>
@@ -53,9 +57,9 @@ struct Light
 struct SceneBuffer
 {
 	XMMATRIX VP;
-	XMVECTORI32 lightParams; // x - lights count
+	// XMVECTORI32 lightParams; // x - lights count
 
-	Light lights[4];
+	// Light lights[4];
 };
 
 struct SimpleVertex
@@ -66,7 +70,8 @@ struct SimpleVertex
 
 struct ConstantBuffer
 {
-	XMVECTORI32 secs; // x - scale
+	XMVECTORI32 secs; // x - elapsed framse, y - cur texture index, z - cur frame counter, w - fields num
+	XMVECTORI32 stepsNum;
 };
 
 #define SAFE_RELEASE(p) \
@@ -300,8 +305,9 @@ bool Renderer::Update()
 		return true;
 	}
 
+	int elapsedSteps = (int)((float)elapsedSecForPeriod / m_frameLength);
 	{
-		m_pFieldSwapper->IncStep();
+		m_pFieldSwapper->IncStep(elapsedSteps);
 	}
 
 	m_esec = 0;
@@ -310,7 +316,8 @@ bool Renderer::Update()
 	double elapSecForPeriod = (usec - m_psec) / 1000000.0;
 
 	ConstantBuffer cb1;
-	cb1.secs = { (int)((float)elapsedSecForPeriod / m_frameLength), 0, 0, 0 };
+	cb1.secs = { elapsedSteps, m_pFieldSwapper->CurrentFieldIndex(), m_pFieldSwapper->CurrentStepsNum(), m_pFieldSwapper->TotalFieldsNum() };
+	cb1.stepsNum = { m_pFieldSwapper->StepsPerFieldByIndex(0), m_pFieldSwapper->StepsPerFieldByIndex(1), 0, 0 };
 	m_pContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &cb1, 0, 0);
 
 	ModelBuffer cb;
@@ -322,7 +329,7 @@ bool Renderer::Update()
 	cb.normalMatrix = XMMatrixInverse(NULL, m);
 	m_pContext->UpdateSubresource(m_pModelBuffer, 0, NULL, &cb, 0, 0);
 
-	cb.modelMatrix = XMMatrixTranspose(XMMatrixTranslation(1.5f, 0, 0));
+	cb.modelMatrix = XMMatrixTranspose(XMMatrixTranslation(5.0f, 0, 0));
 	cb.normalMatrix = XMMatrixIdentity();
 	m_pContext->UpdateSubresource(m_pModelBuffer2, 0, NULL, &cb, 0, 0);
 
@@ -348,7 +355,7 @@ bool Renderer::Update()
 	float height = ((float)m_height / m_width) * width;
 	scb.VP = XMMatrixTranspose(view * XMMatrixPerspectiveLH(width, height, nearPlane, farPlane));
 
-	scb.lightParams.i[1] = m_mode;
+	//scb.lightParams.i[1] = m_mode;
 
 	// Setup lights
 	/*
@@ -357,13 +364,13 @@ bool Renderer::Update()
 	scb.lights[0].color = XMVECTORF32{ 0.75f, 0, 0, 0 };
 	*/
 
-	scb.lightParams.i[0] = 3;
+	/*scb.lightParams.i[0] = 3;
 	scb.lights[0].pos = XMVECTORF32{ 0, 1, 0, 0 };
 	scb.lights[0].color = XMVECTORF32{ 0.75f, 0, 0, 0 };
 	scb.lights[1].pos = XMVECTORF32{ 3, 1, 0, 0 };
 	scb.lights[1].color = XMVECTORF32{ 0, 0.75f, 0, 0 };
 	scb.lights[2].pos = XMVECTORF32{ 0, 0, 2, 0 };
-	scb.lights[2].color = XMVECTORF32{ 1, 1, 1, 0 };
+	scb.lights[2].color = XMVECTORF32{ 1, 1, 1, 0 };*/
 
 	m_pContext->UpdateSubresource(m_pSceneBuffer, 0, NULL, &scb, 0, 0);
 
@@ -403,6 +410,23 @@ bool Renderer::Render()
 	m_pContext->RSSetViewports(1, &viewport);
 	D3D11_RECT rect{ 0, 0, (LONG)m_width, (LONG)m_height };
 	m_pContext->RSSetScissorRects(1, &rect);
+
+
+	{
+		static const float nearPlane = 0.001f;
+		static const float farPlane = 100.0f;
+		static const float fov = (float)M_PI * 2.0 / 3.0;
+
+		XMMATRIX view = XMMatrixInverse(NULL, XMMatrixTranslation(0, 0, -m_dist) * XMMatrixRotationAxis({ 1,0,0 }, m_lat) * XMMatrixRotationAxis({ 0,1,0 }, m_lon));
+
+		float width = nearPlane / tanf(fov / 2.0);
+		float height = ((float)m_height / m_width) * width;
+		XMMATRIX vp = XMMatrixTranspose(view * XMMatrixPerspectiveLH(width, height, nearPlane, farPlane));
+
+		// m_pMesh->Draw(XMMatrixIdentity(), vp);
+		m_pModel->SetTexture(m_pPingPong->TargetTexture(), m_pPingPong->TargetSRV());
+		m_pModel->Draw(vp);
+	}
 
 	RenderScene();
 
@@ -726,11 +750,54 @@ HRESULT Renderer::CreateScene()
 		16, 18, 17, 16, 19, 18,
 		20, 22, 21, 20, 23, 22
 	};
+	{
+		std::vector<Vertex> verts = {		// Bottom face
+			{{-0.5, -0.5,  0.5, 1}, {0,1}, {0,-1,0}, {1,0,0}},
+			{{ 0.5, -0.5,  0.5, 1}, {1,1}, {0,-1,0}, {1,0,0}},
+			{{ 0.5, -0.5, -0.5, 1}, {1,0}, {0,-1,0}, {1,0,0}},
+			{{-0.5, -0.5, -0.5, 1}, {0,0}, {0,-1,0}, {1,0,0}},
+			// Top face
+			{{-0.5,  0.5, -0.5, 1}, {0,1}, {0,1,0}, {1,0,0}},
+			{{ 0.5,  0.5, -0.5, 1}, {1,1}, {0,1,0}, {1,0,0}},
+			{{ 0.5,  0.5,  0.5, 1}, {1,0}, {0,1,0}, {1,0,0}},
+			{{-0.5,  0.5,  0.5, 1}, {0,0}, {0,1,0}, {1,0,0}},
+			// Front face
+			{{ 0.5, -0.5, -0.5, 1}, {0,1}, {1,0,0}, {0,0,1}},
+			{{ 0.5, -0.5,  0.5, 1}, {1,1}, {1,0,0}, {0,0,1}},
+			{{ 0.5,  0.5,  0.5, 1}, {1,0}, {1,0,0}, {0,0,1}},
+			{{ 0.5,  0.5, -0.5, 1}, {0,0}, {1,0,0}, {0,0,1}},
+			// Back face
+			{{-0.5, -0.5,  0.5, 1}, {0,1}, {-1,0,0}, {0,0,-1}},
+			{{-0.5, -0.5, -0.5, 1}, {1,1}, {-1,0,0}, {0,0,-1}},
+			{{-0.5,  0.5, -0.5, 1}, {1,0}, {-1,0,0}, {0,0,-1}},
+			{{-0.5,  0.5,  0.5, 1}, {0,0}, {-1,0,0}, {0,0,-1}},
+			// Left face
+			{{ 0.5, -0.5,  0.5, 1}, {0,1}, {0,0,1}, {-1,0,0}},
+			{{-0.5, -0.5,  0.5, 1}, {1,1}, {0,0,1}, {-1,0,0}},
+			{{-0.5,  0.5,  0.5, 1}, {1,0}, {0,0,1}, {-1,0,0}},
+			{{ 0.5,  0.5,  0.5, 1}, {0,0}, {0,0,1}, {-1,0,0}},
+			// Right face
+			{{-0.5, -0.5, -0.5, 1}, {0,1}, {0,0,-1}, {1,0,0}},
+			{{ 0.5, -0.5, -0.5, 1}, {1,1}, {0,0,-1}, {1,0,0}},
+			{{ 0.5,  0.5, -0.5, 1}, {1,0}, {0,0,-1}, {1,0,0}},
+			{{-0.5,  0.5, -0.5, 1}, {0,0}, {0,0,-1}, {1,0,0}},
+		};
+		std::vector<UINT16> inds = {
+			0, 2, 1, 0, 3, 2,
+			4, 6, 5, 4, 7, 6,
+			8, 10, 9, 8, 11, 10,
+			12, 14, 13, 12, 15, 14,
+			16, 18, 17, 16, 19, 18,
+			20, 22, 21, 20, 23, 22
+		};
+		m_pMesh = new Mesh(m_pDevice, m_pContext, verts, inds);
+	}
+	assert(m_pMesh != NULL);
 
 	// Create vertex buffer
 	D3D11_BUFFER_DESC vertexBufferDesc = { 0 };
 	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	vertexBufferDesc.ByteWidth = sizeof(Vertices);
+	vertexBufferDesc.ByteWidth = sizeof(TextureVertex) * 24;// sizeof(Vertices);
 	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	vertexBufferDesc.CPUAccessFlags = 0;
 	vertexBufferDesc.MiscFlags = 0;
@@ -749,7 +816,7 @@ HRESULT Renderer::CreateScene()
 	{
 		D3D11_BUFFER_DESC indexBufferDesc = { 0 };
 		indexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-		indexBufferDesc.ByteWidth = sizeof(Indices);
+		indexBufferDesc.ByteWidth = sizeof(UINT16) * IndicesCount; //sizeof(Indices);
 		indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 		indexBufferDesc.CPUAccessFlags = 0;
 		indexBufferDesc.MiscFlags = 0;
@@ -792,6 +859,10 @@ HRESULT Renderer::CreateScene()
 		assert(SUCCEEDED(result));
 	}
 	SAFE_RELEASE(pBlob);
+
+	{
+		m_pMesh->SetShaders(m_pVertexShader, m_pPixelShader, m_pInputLayout);
+	}
 
 	// Create model constant buffer
 	if (SUCCEEDED(result))
@@ -885,7 +956,7 @@ HRESULT Renderer::CreateScene()
 		assert(m_pPingPong);
 
 		int x, y, n;
-		unsigned char* pixels = stbi_load("Assets//line2048.png", &x, &y, &n, 0);
+		unsigned char* pixels = stbi_load("Assets//SwordV3.jpg", &x, &y, &n, 0);
 		assert(pixels != nullptr);
 
 		image = new Image(pixels, x, y, n);
@@ -902,7 +973,7 @@ HRESULT Renderer::CreateScene()
 
 			CreateVectorFieldTexture();
 
-			vectorField->inv();
+			// vectorField->inv();
 			CreateVectorFieldTexture();
 
 			m_pFieldSwapper->SetUpStepPerFiled({ 7, 12 });
@@ -924,8 +995,14 @@ HRESULT Renderer::CreateScene()
 			m_pPingPong->SetupResources(PingPong::ResourceType::SOURCE, pTextureSrc, pTextureSrcRTV, pTextureSrcSRV);
 		}
 	}
-	if (SUCCEEDED(result)) {
+	if (SUCCEEDED(result))
+	{
 		SetupAnimationTextureBuffer();
+	}
+
+	if (SUCCEEDED(result))
+	{
+		result = LoadModel();
 	}
 
 	return result;
@@ -1099,6 +1176,9 @@ void Renderer::DestroyScene()
 	delete image;
 	delete m_pPingPong;
 	delete m_pFieldSwapper;
+
+	delete m_pMesh;
+	delete m_pModel;
 }
 
 void Renderer::RenderScene()
@@ -1128,18 +1208,19 @@ void Renderer::RenderScene()
 	m_pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// ID3D11ShaderResourceView* textures[] = {m_pTextureCopySRV, m_pTextureNMSRV};
-	ID3D11ShaderResourceView* textures[] = {m_pPingPong->TargetSRV(), m_pTextureNMSRV};
-	m_pContext->PSSetShaderResources(0, 2, textures);
+	std::vector<ID3D11ShaderResourceView*> texts{m_pPingPong->TargetSRV(), m_pTextureNMSRV};
+	// ID3D11ShaderResourceView* textures[] = {m_pPingPong->TargetSRV(), m_pTextureNMSRV};
+	m_pContext->PSSetShaderResources(0, 2, texts.data());
 
 	ID3D11SamplerState* samplers[] = {m_pSamplerState};
 	m_pContext->PSSetSamplers(0, 1, samplers);
 
 	// First triangle
 	{
-		ID3D11Buffer* constBuffers[] = { m_pModelBuffer };
-		m_pContext->VSSetConstantBuffers(0, 1, constBuffers);
+		// ID3D11Buffer* constBuffers[] = { m_pModelBuffer };
+		// m_pContext->VSSetConstantBuffers(0, 1, constBuffers);
 
-		m_pContext->DrawIndexed(IndicesCount, 0, 0);
+		//m_pContext->DrawIndexed(IndicesCount, 0, 0);
 	}
 
 	// Second triangle
@@ -1247,9 +1328,12 @@ void Renderer::RenderTexture()
 
 	//assert(m_pPingPong->SourceSRV() == m_pTextureCopySRV);
 	// m_pFieldSwapper->CurrentVectorFieldSRV();
-	ID3D11ShaderResourceView* textures[2] = { m_pPingPong->SourceSRV(), m_pFieldSwapper->CurrentVectorFieldSRV() };
+	ID3D11ShaderResourceView* textures[3] = { m_pPingPong->SourceSRV(), 
+		m_pFieldSwapper->FieldSRVByIndex(0),
+		m_pFieldSwapper->FieldSRVByIndex(1),
+	};
 
-	m_pContext->PSSetShaderResources(0, 2, textures);
+	m_pContext->PSSetShaderResources(0, 3, textures);
 
 	ID3D11SamplerState* samplers[1] = { m_pSamplerState };
 	m_pContext->PSSetSamplers(0, 1, samplers);
@@ -1282,7 +1366,7 @@ ID3D11VertexShader* Renderer::CreateVertexShader(LPCTSTR shaderSource, ID3DBlob*
 		fclose(pFile);
 
 		ID3DBlob* pError = NULL;
-		HRESULT result = D3DCompile(pSourceCode, size, "", NULL, NULL, "VS", "vs_5_0", 0, 0, ppBlob, &pError);
+		HRESULT result = D3DCompile(pSourceCode, size, "", NULL, NULL, "VS", "vs_5_0", D3DCOMPILE_SKIP_OPTIMIZATION, 0, ppBlob, &pError);
 		assert(SUCCEEDED(result));
 		if (!SUCCEEDED(result))
 		{
@@ -1296,6 +1380,8 @@ ID3D11VertexShader* Renderer::CreateVertexShader(LPCTSTR shaderSource, ID3DBlob*
 
 		SAFE_RELEASE(pError);
 	}
+
+	assert(pVertexShader);
 	return pVertexShader;
 }
 
@@ -1320,7 +1406,7 @@ ID3D11PixelShader* Renderer::CreatePixelShader(LPCTSTR shaderSource)
 
 		ID3DBlob* pBlob = NULL;
 		ID3DBlob* pError = NULL;
-		HRESULT result = D3DCompile(pSourceCode, size, "", NULL, NULL, "PS", "ps_5_0", 0, 0, &pBlob, &pError);
+		HRESULT result = D3DCompile(pSourceCode, size, "", NULL, NULL, "PS", "ps_5_0", D3DCOMPILE_SKIP_OPTIMIZATION, 0, &pBlob, &pError);
 		assert(SUCCEEDED(result));
 		if (!SUCCEEDED(result))
 		{
@@ -1336,5 +1422,18 @@ ID3D11PixelShader* Renderer::CreatePixelShader(LPCTSTR shaderSource)
 		SAFE_RELEASE(pError);
 		SAFE_RELEASE(pBlob);
 	}
+
+	assert(pPixelShader);
 	return pPixelShader;
+}
+
+//using namespace tinygltf;
+
+HRESULT Renderer::LoadModel() // Change
+{
+	// Model model(m_pDevice, m_pContext, "Assets//models//artorias//scene.gltf");
+	m_pModel = new Model(m_pDevice, m_pContext, "Assets//models//artorias//scene.gltf");
+	m_pModel->SetShaders(m_pVertexShader, m_pPixelShader, m_pInputLayout);
+
+	return S_OK;
 }

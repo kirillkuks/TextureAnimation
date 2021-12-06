@@ -2,15 +2,27 @@
 #include <fstream>
 #include <assert.h>
 
-VectorField::VectorField(size_t x, size_t y) : field(x, std::vector<std::pair<int, int>>(y, { 1, 0 }))
+VectorField::VectorField(size_t x, size_t y) : field(x, std::vector<std::pair<int, int>>(y, { 0, 0 }))
 {
 	// setHalfSpeedTransformField(2);
 	// setDiagField(4);
 	// setCycleField();
 	// int a = 2 + 4;
 	// setCircleField();
-	// setSinField();
-	setField();
+	// setSinField(); 
+	
+	// SetUp 2
+	// setField();
+
+	// SetUp 1
+	for (size_t i = 0; i < 300; ++i)
+	{
+		for (size_t j = 0; j < y; ++j)
+		{
+			field[i][j].first = 0;
+			field[i][j].second = 4;
+		}
+	}
 }
 
 VectorField::~VectorField() {}
@@ -218,24 +230,24 @@ void VectorField::setSinField()
 			if (i > j && i >= y - j)
 			{
 				field[i][j].first = 0;
-				field[i][j].second = 5;
+				field[i][j].second = 20;
 			}
 
 			if (i >= j && i < y - j)
 			{
-				field[i][j].first = 5;
+				field[i][j].first = 20;
 				field[i][j].second = 0;
 			}
 
 			if (i < j && i <= y - j)
 			{
 				field[i][j].first = 0;
-				field[i][j].second = -5;
+				field[i][j].second = -20;
 			}
 
 			if (i <= j && i > y - j)
 			{
-				field[i][j].first = -5;
+				field[i][j].first = -20;
 				field[i][j].second = 0;
 			}
 		}

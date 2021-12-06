@@ -13,8 +13,8 @@ struct Light
 cbuffer SceneBuffer : register(b1)
 {
     float4x4 VP;
-	int4 lightParams;
-	Light lights[4];
+	// int4 lightParams;
+	// Light lights[4];
 }
 
 Texture2D ColorTexture : register(t0);

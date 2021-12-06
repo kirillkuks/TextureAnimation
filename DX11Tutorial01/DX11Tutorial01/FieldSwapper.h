@@ -36,10 +36,17 @@ public:
 	~FieldSwapper();
 
 	ID3D11ShaderResourceView* CurrentVectorFieldSRV() const;
+	ID3D11ShaderResourceView* FieldSRVByIndex(size_t ind) const;
+
+	int CurrentFieldIndex() const;
+	int CurrentStepsNum() const;
+
+	int TotalFieldsNum() const;
+	int StepsPerFieldByIndex(size_t ind) const;
 
 	void AddField(ID3D11Texture2D* vectorFieldTexture, ID3D11ShaderResourceView* vectorFieldTextureSRV);
 	void NextField();
 	void SetUpStepPerFiled(std::vector<size_t> const& stepsPerField);
-	void IncStep();
+	void IncStep(size_t inc = 1);
 
 };

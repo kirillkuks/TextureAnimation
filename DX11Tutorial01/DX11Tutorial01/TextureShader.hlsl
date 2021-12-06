@@ -1,11 +1,13 @@
 cbuffer ConstantBuffer : register(b0)
 {
-	int4 secs;
+	int4 secs; // x - elapsed framse, y - cur texture index, z - cur frame counter, w - total fiels num
+	int4 framesPerTex;
 }
 
 texture2D Texture : register(t0);
 
-texture2D VectorField : register(t1);
+texture2D VectorField1 : register(t1);
+texture2D VectorField2 : register(t2);
 
 SamplerState Sampler : register(s0);
 
@@ -35,13 +37,45 @@ float4 PS(in VSOutput input) : SV_Target0
 {
 	float4 color = float4(0, 0, 0, 1);
 	
-	float ddx = VectorField.Sample(Sampler, input.uv).r;
-	float ddy = VectorField.Sample(Sampler, input.uv).g;
+	// float ddx = VectorField1.Sample(Sampler, input.uv).r;
+	// float ddy = VectorField1.Sample(Sampler, input.uv).g;
 
 	// float d = 1 / 2048.0;
 	int scale = secs.x;
+	int curIndex = secs.y;
+	int curFrameCounter = secs.z;
+	int totalFieldNum = secs.w;
 
-	color.rgb = Texture.Sample(Sampler, input.uv + scale * float2(ddy, ddx)).rgb;
+	float2 vec = input.uv;
+
+	for (int i = 0; i < scale; ++i)
+	{
+		float ddx = VectorField1.Sample(Sampler, vec).r;
+		float ddy = VectorField1.Sample(Sampler, vec).g;
+
+		if (curIndex == 0)
+		{
+			ddx = VectorField1.Sample(Sampler, vec).r;
+			ddy = VectorField1.Sample(Sampler, vec).g;
+		}
+		else
+		{
+			ddx = VectorField2.Sample(Sampler, vec).r;
+			ddy = VectorField2.Sample(Sampler, vec).g;
+		}
+
+		vec = vec + float2(ddy, ddx);
+
+		++curFrameCounter;
+		if (curFrameCounter >= framesPerTex.y)
+		{
+			curFrameCounter = 0;
+			curIndex = (curIndex + 1) % totalFieldNum;
+		}
+	}
+
+	color.rgb = Texture.Sample(Sampler, vec).rgb;
+	// color.rgb = Texture.Sample(Sampler, input.uv + scale * float2(VectorField1.Sample(Sampler, input.uv).g, VectorField1.Sample(Sampler, input.uv).r));
 
 	/*color.rgb = (Texture.Sample(Sampler, input.uv) +
 		( ddx * 2048.0 * (Texture.Sample(Sampler, input.uv + float2(0, d)) - Texture.Sample(Sampler, input.uv + float2(0, -d))) ) +

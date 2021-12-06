@@ -35,6 +35,38 @@ ID3D11ShaderResourceView* FieldSwapper::CurrentVectorFieldSRV() const
 	return m_aFeildsResources[m_iCurFieldIndex]->m_pVectorFieldTextureSRV;
 }
 
+ID3D11ShaderResourceView* FieldSwapper::FieldSRVByIndex(size_t ind) const
+{
+	if (ind < m_aFeildsResources.size())
+	{
+		return m_aFeildsResources[ind]->m_pVectorFieldTextureSRV;
+	}
+
+	return nullptr;
+}
+
+int FieldSwapper::CurrentFieldIndex() const
+{
+	return (int)m_iCurFieldIndex;
+}
+
+int FieldSwapper::CurrentStepsNum() const
+{
+	return (int)m_iCurStepsNum;
+}
+
+int FieldSwapper::TotalFieldsNum() const
+{
+	return (int)m_aFeildsResources.size();
+}
+
+int FieldSwapper::StepsPerFieldByIndex(size_t ind) const
+{
+	assert(ind < m_aStepsPerField.size());
+
+	return (int)m_aStepsPerField[ind];
+}
+
 void FieldSwapper::AddField(ID3D11Texture2D* vectorFieldTexture, ID3D11ShaderResourceView* vectorFieldTextureSRV)
 {
 	assert(vectorFieldTexture && vectorFieldTextureSRV);
@@ -57,15 +89,18 @@ void FieldSwapper::SetUpStepPerFiled(std::vector<size_t> const& stepsPerField)
 	m_iCurStepsNum = 0;
 }
 
-void FieldSwapper::IncStep()
+void FieldSwapper::IncStep(size_t inc)
 {
-	++m_iCurStepsCounter;
-
-	if (m_iCurStepsCounter == m_aStepsPerField[m_iCurStepsNum])
+	for (size_t i = 0; i < inc; ++i)
 	{
-		m_iCurStepsNum = (m_iCurStepsNum + 1) % m_aFeildsResources.size();
-		m_iCurStepsCounter = 0;
+		++m_iCurStepsCounter;
 
-		NextField();
+		if (m_iCurStepsCounter == m_aStepsPerField[m_iCurStepsNum])
+		{
+			m_iCurStepsNum = (m_iCurStepsNum + 1) % m_aFeildsResources.size();
+			m_iCurStepsCounter = 0;
+
+			NextField();
+		}
 	}
 }

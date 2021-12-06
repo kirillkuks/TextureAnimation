@@ -8,6 +8,9 @@
 #include "VectorField.h"
 #include "FieldSwapper.h"
 
+#include "Model.h"
+#include "Mesh.h"
+
 class Renderer
 {
 public:
@@ -43,9 +46,13 @@ private:
 	ID3D11VertexShader* CreateVertexShader(LPCTSTR shaderSource, ID3DBlob** ppBlob);
 	ID3D11PixelShader*  CreatePixelShader(LPCTSTR shaderSource);
 
+	HRESULT LoadModel();
+
 	// HRESULT 
 
 private:
+	// Delete unused
+
 	ID3D11Device* m_pDevice;
 	ID3D11DeviceContext* m_pContext;
 
@@ -104,6 +111,9 @@ private:
 
 	ID3D11Texture2D* m_pAnimationTextureVectorField;
 	ID3D11ShaderResourceView* m_pAnimationTextureVectorFieldSRV;
+
+	Mesh* m_pMesh;  // Change
+	Model* m_pModel;
 
 	UINT m_width;
 	UINT m_height;
