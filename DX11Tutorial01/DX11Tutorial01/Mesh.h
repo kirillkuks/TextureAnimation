@@ -51,6 +51,12 @@ private:
 	ID3D11Texture2D* m_pTexture;
 	ID3D11ShaderResourceView* m_pTextureSRV;
 
+	ID3D11Texture2D* m_pOriginTexture;
+	ID3D11ShaderResourceView* m_pOriginTextureSRV;
+
+	std::vector<ID3D11ShaderResourceView*> m_aShaderResources;
+	std::vector<ID3D11Buffer*> m_aConstantBuffers;
+
 public:
 	Mesh(ID3D11Device* const& device, 
 		ID3D11DeviceContext* const& context, 
@@ -63,6 +69,9 @@ public:
 		ID3D11InputLayout* const& layout);   // Change
 
 	void SetTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV);   // Change
+	void SetOriginTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV);   // Change
+	void SetShaderResources(std::vector<ID3D11ShaderResourceView*> const& resources);   // Change
+	void SetConstantBuffers(std::vector<ID3D11Buffer*> const& buffers);   // Change
 
 	void Draw(XMMATRIX matrix, XMMATRIX sceneMatrix);
 

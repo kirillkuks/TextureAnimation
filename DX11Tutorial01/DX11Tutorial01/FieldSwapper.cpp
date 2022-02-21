@@ -77,10 +77,6 @@ void FieldSwapper::AddField(ID3D11Texture2D* vectorFieldTexture, ID3D11ShaderRes
 void FieldSwapper::NextField()
 {
 	m_iCurFieldIndex = (m_iCurFieldIndex + 1) % m_aFeildsResources.size();
-
-	{
-		m_iCurStepsNum = 1;
-	}
 }
 
 void FieldSwapper::SetUpStepPerFiled(std::vector<size_t> const& stepsPerField)

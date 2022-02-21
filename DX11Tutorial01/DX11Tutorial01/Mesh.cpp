@@ -140,6 +140,22 @@ void Mesh::SetTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textur
 	m_pTextureSRV = textureSRV;   // Change
 }
 
+void Mesh::SetOriginTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV)
+{
+	m_pOriginTexture = texture;
+	m_pOriginTextureSRV = textureSRV;
+}
+
+void Mesh::SetShaderResources(std::vector<ID3D11ShaderResourceView*> const& resources)
+{
+	m_aShaderResources = resources;
+}
+
+void Mesh::SetConstantBuffers(std::vector<ID3D11Buffer*> const& buffers)
+{
+	m_aConstantBuffers = buffers;
+}
+
 void Mesh::Draw(XMMATRIX matrix, XMMATRIX sceneMatrix)
 {
 	ID3D11Buffer* vertexBuffers[] = { m_pVertexBuffer };
@@ -154,12 +170,19 @@ void Mesh::Draw(XMMATRIX matrix, XMMATRIX sceneMatrix)
 	m_pContext->VSSetShader(m_pVertexShader, NULL, 0);
 	m_pContext->PSSetShader(m_pPixelShader, NULL, 0);
 
-	ID3D11ShaderResourceView* textures[] = { m_pTextureSRV, NULL };
+	ID3D11ShaderResourceView* textures[] = { m_pTextureSRV, m_pOriginTextureSRV };
 	m_pContext->PSSetShaderResources(0, 2, textures);
+
+	{
+		if (m_aShaderResources.size() > 0)
+		{
+			m_pContext->PSSetShaderResources(2, m_aShaderResources.size(), m_aShaderResources.data());
+		}
+	}
 
 	// Change
 	CBuffer cb;
-	XMMATRIX tranlation = XMMatrixTranslation(0, 0, -12);
+	XMMATRIX tranlation = XMMatrixTranslation(0, 0, -7);
 	XMMATRIX rotation = XMMatrixRotationX(90);
 	cb.meshMatrix = XMMatrixTranspose(tranlation * rotation);
 	// cb.meshMatrix = XMMatrixTranspose(matrix);
@@ -169,6 +192,7 @@ void Mesh::Draw(XMMATRIX matrix, XMMATRIX sceneMatrix)
 
 	SBuffer sb;
 	sb.VP = sceneMatrix;
+	// sb.VP = XMMatrixIdentity();
 	m_pContext->UpdateSubresource(m_pSceneBuffer, 0, NULL, &sb, 0, 0);
 
 	m_pContext->RSSetState(m_pRasterizerState);
@@ -180,6 +204,10 @@ void Mesh::Draw(XMMATRIX matrix, XMMATRIX sceneMatrix)
 	ID3D11Buffer* sceneBuffers[] = { m_pSceneBuffer };
 	m_pContext->VSSetConstantBuffers(1, 1, sceneBuffers);
 	m_pContext->PSSetConstantBuffers(1, 1, sceneBuffers);
+
+	{
+		m_pContext->PSSetConstantBuffers(2, m_aConstantBuffers.size(), m_aConstantBuffers.data());
+	}
 
 	m_pContext->DrawIndexed((UINT)indexCount, 0, 0);
 }

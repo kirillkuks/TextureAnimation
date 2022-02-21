@@ -17,8 +17,16 @@ cbuffer SceneBuffer : register(b1)
 	// Light lights[4];
 }
 
+cbuffer ConstantBuffer : register(b2)
+{
+	float4 scale; // x - scale factor
+}
+
 Texture2D ColorTexture : register(t0);
-Texture2D NormalTexture : register(t1);
+Texture2D LayerTexture : register(t1);
+// Texture2D NormalTexture : register(t1);
+
+Texture2D VectorField : register(t2);
 
 SamplerState Sampler : register(s0);
 
@@ -52,16 +60,66 @@ VSOutput VS(in VSInput vertex)
 	return output;
 }
 
+float len(float2 vec)
+{
+	return sqrt(vec.r * vec.r + vec.g + vec.g);
+}
+
 float4 PS(in VSOutput input) : SV_Target0
 {
-	float4 color = float4(0,0,0,1);
-	// return color;
+	float4 color = float4(0, 0, 0, 0);
 
-	/*int lightCount = lightParams.x;
-	int mode = lightParams.y;*/
+	float2 coord = input.uv;
+	
+	float ddx = VectorField.Sample(Sampler, coord).r;
+	float ddy = VectorField.Sample(Sampler, coord).g;
 
-	float3 matColor = ColorTexture.Sample(Sampler, input.uv);
-	color.xyz += matColor;
+	float2 x2 = input.uv;
+	float2 x1 = x2 + float2(ddy, ddx);
+
+	float2 xc = (x1 + x2) / 2;
+
+	float t = scale.x;
+
+	float2 newCoord = coord + scale.x * float2(ddy, ddx);
+
+	float2 newCoord1 = t * x1 + (1 - t) * x2;
+
+	float pi = 3.14159265359;
+
+	// полукруг
+	{
+		t = -pi * t; // или pi * t чтобы в другую сторону
+		float delta_x = (x1.r - x2.r);
+		float delta_y = (x1.g - x2.g);
+
+		float r = sqrt(delta_x * delta_x + delta_y * delta_y) / 2;
+		float2 center = (x1 + x2) / 2;
+
+		float2 bas = float2(1, 0);
+		float2 vec = float2(-ddy, -ddx);
+
+		float angle = (bas.r * vec.r + bas.g * vec.g) / (len(bas) * len(vec));
+		angle = (bas.r * (-ddy) + bas.g * (-ddx)) / (1 * sqrt(ddy * ddy + ddx * ddx));
+		float start = acos(angle);
+
+		newCoord1.r = r * cos(t + start) + center.r;
+		newCoord1.g = r * sin(t + start) + center.g;
+	}
+
+	float3 matColor = ColorTexture.Sample(Sampler, newCoord1).rgb;   // анимированный слой
+	// float3 matColor = ColorTexture.Sample(Sampler, coord).rgb;
+	float3 layerColor = LayerTexture.Sample(Sampler, coord).rgb;   // фон
+
+	if (matColor.r == 0 && matColor.g == 0 && matColor.b == 0)
+	{
+		color.xyz = layerColor;
+	}
+	else
+	{
+		color.xyz = matColor;
+	}
+
 	return color;
 
 	/*float3 nm = (NormalTexture.Sample(Sampler, input.uv) - float3(0.5, 0.5, 0.5)) * 2.0;

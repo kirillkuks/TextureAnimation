@@ -1,6 +1,6 @@
 cbuffer ConstantBuffer : register(b0)
 {
-	int4 secs; // x - elapsed framse, y - cur texture index, z - cur frame counter, w - total fiels num
+	int4 secs; // x - scale factor
 	int4 framesPerTex;
 }
 
@@ -40,15 +40,18 @@ float4 PS(in VSOutput input) : SV_Target0
 	// float ddx = VectorField1.Sample(Sampler, input.uv).r;
 	// float ddy = VectorField1.Sample(Sampler, input.uv).g;
 
-	// float d = 1 / 2048.0;
+	float d = 1 / 2048.0;
 	int scale = secs.x;
-	int curIndex = secs.y;
-	int curFrameCounter = secs.z;
-	int totalFieldNum = secs.w;
+	// int curIndex = secs.y;
+	// int curFrameCounter = secs.z;
+	// int totalFieldNum = secs.w;
 
 	float2 vec = input.uv;
 
-	for (int i = 0; i < scale; ++i)
+	float ddx = VectorField1.Sample(Sampler, vec).r;
+	float ddy = VectorField1.Sample(Sampler, vec).g;
+
+	/*for (int i = 0; i < scale; ++i)
 	{
 		float ddx = VectorField1.Sample(Sampler, vec).r;
 		float ddy = VectorField1.Sample(Sampler, vec).g;
@@ -72,9 +75,20 @@ float4 PS(in VSOutput input) : SV_Target0
 			curFrameCounter = 0;
 			curIndex = (curIndex + 1) % totalFieldNum;
 		}
-	}
+	}*/
 
-	color.rgb = Texture.Sample(Sampler, vec).rgb;
+	color.rgb = Texture.Sample(Sampler, vec + scale * float2(ddy, ddx)).rgb;
+
+	/*float3 I_i_j = Texture.Sample(Sampler, vec).rgb;
+	
+	float3 I_i1_j = Texture.Sample(Sampler, vec + float2(d, 0)).rgb;
+	float3 I_1i_j = Texture.Sample(Sampler, vec + float2(-d, 0)).rgb;
+
+	float3 I_i_j1 = Texture.Sample(Sampler, vec + float2(0, d)).rgb;
+	float3 I_i_1j = Texture.Sample(Sampler, vec + float2(0, -d)).rgb;
+
+	color.rgb = I_i_j + scale * (ddy * (I_i1_j - I_1i_j) + ddx * (I_i_j1 - I_i_1j));*/
+
 	// color.rgb = Texture.Sample(Sampler, input.uv + scale * float2(VectorField1.Sample(Sampler, input.uv).g, VectorField1.Sample(Sampler, input.uv).r));
 
 	/*color.rgb = (Texture.Sample(Sampler, input.uv) +

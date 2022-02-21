@@ -19,7 +19,15 @@ Model::Model(ID3D11Device* const& device, ID3D11DeviceContext* const& context, s
 
 	data = LoadData(filename);
 
-	ParseNode(0);
+	ParseNode(0, XMMatrixScaling(scale_factor, scale_factor, scale_factor) * XMMatrixTranslation(0, -0.5f, 0));
+
+	size_t size = m_aMeshes.size();
+	assert(size == m_aTextures.size());
+
+	for (size_t i = 0; i < m_aMeshes.size(); ++i)
+	{
+		m_aMeshes[i]->SetTexture(m_aTextures[i]->SourceTexture(), m_aTextures[i]->ShaderResourceView());
+	}
 
 	int a = 0;
 }
@@ -30,6 +38,11 @@ Model::~Model()
 	{
 		delete m_aMeshes[i];
 	}
+
+	for (size_t i = 0; i < m_aTextures.size(); ++i)
+	{
+		delete m_aTextures[i];
+	}
 }
 
 void Model::Draw(XMMATRIX sceneMatrix)
@@ -38,7 +51,7 @@ void Model::Draw(XMMATRIX sceneMatrix)
 
 	// for (size_t i = 0; i < m_aMeshes.size(); ++i)
 	// {
-	// 	 m_aMeshes[i]->Draw(m_aMatrices[i], sceneMatrix);
+	// 	m_aMeshes[i]->Draw(m_aMatrices[i], sceneMatrix);
 	// }
 }
 
@@ -55,6 +68,21 @@ void Model::SetShaders(ID3D11VertexShader* const& vertexShader,
 void Model::SetTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV)
 {
 	m_aMeshes[3]->SetTexture(texture, textureSRV);   // Change
+}
+
+void Model::SetOriginTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV)
+{
+	m_aMeshes[3]->SetOriginTexture(texture, textureSRV);
+}
+
+void Model::SetShaderResources(std::vector<ID3D11ShaderResourceView*> const& resources)
+{
+	m_aMeshes[3]->SetShaderResources(resources);
+}
+
+void Model::SetConstantBuffers(std::vector<ID3D11Buffer*> const& buffers)
+{
+	m_aMeshes[3]->SetConstantBuffers(buffers);
 }
 
 std::vector<unsigned char> Model::LoadData(std::string const& filename) const
@@ -124,18 +152,15 @@ void Model::ParseNode(size_t nodeInd, XMMATRIX matrix)
 			matrix[12], matrix[13], matrix[14], matrix[15]);
 	}
 
-	XMMATRIX newMatrix = XMMatrixMultiply(matrix, mat);
-	newMatrix = XMMatrixMultiply(newMatrix, translationMatrix);
-	newMatrix = XMMatrixMultiply(newMatrix, rotationMatrix);
-	newMatrix = XMMatrixMultiply(newMatrix, scaleMatrix);
-
-	// XMMATRIX newMatrix = matrix * mat * translationMatrix * rotationMatrix * scaleMatrix;
+	XMMATRIX newMatrix = scaleMatrix * rotationMatrix * translationMatrix * mat * matrix;
 
 	if (node.mesh >= 0)
 	{
 		m_aMatrices.push_back(newMatrix);
 		LoadMesh(node.mesh);
 	}
+
+	// assert(m_aMatrices.size() == m_aMeshes.size());
 
 	if (node.children.size() > 0)
 	{
@@ -148,11 +173,20 @@ void Model::ParseNode(size_t nodeInd, XMMATRIX matrix)
 
 void Model::LoadMesh(size_t ind)
 {
+	if (ind == 15)
+	{
+		return;
+	}
+
 	size_t posInd = model.meshes[ind].primitives[0].attributes["POSITION"];
 	size_t normalInd = model.meshes[ind].primitives[0].attributes["NORMAL"];
 	size_t tangentInd = model.meshes[ind].primitives[0].attributes["TANGENT"];
 	size_t texInd = model.meshes[ind].primitives[0].attributes["TEXCOORD_0"];
 	size_t indecesInd = model.meshes[ind].primitives[0].indices;
+
+	size_t materialInd = model.meshes[ind].primitives[0].material;
+	Texture* texture = LoadTexture(model.materials[materialInd].pbrMetallicRoughness.baseColorTexture.index);
+	m_aTextures.push_back(texture);
 
 	std::vector<float> posVec = StoreFloats(model.accessors[posInd]);
 	std::vector<float> normalVec = StoreFloats(model.accessors[normalInd]);
@@ -188,6 +222,14 @@ void Model::LoadMesh(size_t ind)
 	m_aMeshes.push_back(new Mesh(m_pDevice, m_pContext, vertecies, indeces));
 
 	int a = 1;
+}
+
+Texture* Model::LoadTexture(size_t imageInd)
+{
+	std::string texturePath = model.images[imageInd].uri;
+	std::string fileDirectory = fname.substr(0, fname.find_last_of('/') + 1);
+
+	return new Texture(m_pDevice, m_pContext, fileDirectory + texturePath);
 }
 
 std::vector<Vertex> Model::CreateVerteciesBuffer(std::vector<XMVECTORF32> const& positions,

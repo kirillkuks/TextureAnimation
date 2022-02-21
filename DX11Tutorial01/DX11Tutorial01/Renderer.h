@@ -96,6 +96,7 @@ private:
 	/////////////////////////////////////////////
 
 	ID3D11Buffer* m_pConstantBuffer;
+	ID3D11Buffer* m_pScaleBuffer;
 
 	ID3D11Resource* m_pTextureCopy;
 
@@ -112,6 +113,9 @@ private:
 	ID3D11Texture2D* m_pAnimationTextureVectorField;
 	ID3D11ShaderResourceView* m_pAnimationTextureVectorFieldSRV;
 
+	ID3D11Texture2D* m_pOriginTexture;
+	ID3D11ShaderResourceView* m_pOriginTextureSRV;
+
 	Mesh* m_pMesh;  // Change
 	Model* m_pModel;
 
@@ -123,7 +127,7 @@ private:
 
 	size_t m_esec = 0;
 
-	float m_frameLength = 1.0f / 60.0f;
+	float m_frameLength = 1.0f / 1.0f;
 
 	float m_lon;
 	float m_lat;

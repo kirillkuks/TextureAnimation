@@ -55,6 +55,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -80,6 +81,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="AnimationTexture.h" />
     <ClInclude Include="DDSTextureLoader11.h" />
     <ClInclude Include="DX11Tutorial01.h" />
     <ClInclude Include="FieldSwapper.h" />
@@ -94,6 +96,7 @@
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="stb_image_write.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="Texture.h" />
     <ClInclude Include="tiny_gltf.h" />
     <ClInclude Include="VectorField.h" />
     <ClInclude Include="WICTextureLoader.h" />
@@ -107,6 +110,7 @@
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="PingPong.cpp" />
     <ClCompile Include="Renderer.cpp" />
+    <ClCompile Include="Texture.cpp" />
     <ClCompile Include="tiny_gltf.cpp" />
     <ClCompile Include="VectorField.cpp" />
     <ClCompile Include="WICTextureLoader.cpp" />

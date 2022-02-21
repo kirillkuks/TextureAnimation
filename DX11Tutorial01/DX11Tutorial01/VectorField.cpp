@@ -1,6 +1,100 @@
 #include "VectorField.h"
 #include <fstream>
 #include <assert.h>
+#include <filesystem>
+
+
+VectorField* VectorField::loadFromFile(std::string const& filename)
+{
+	std::ifstream is(filename);
+
+	if (!is.is_open())
+	{
+		return nullptr;
+	}
+
+	size_t width, height;
+	is >> width >> height;
+
+	VectorField* field = new VectorField(width, height);
+	
+	if (field == nullptr)
+	{
+		return nullptr;
+	}
+
+	while (!is.eof())
+	{
+		size_t y1, x1, y2, x2;
+		is >> x1 >> y1 >> x2 >> y2;
+
+		int y, x;
+		is >> x >> y;
+
+		for (size_t i = x1; i < x2; ++i)
+		{
+			for (size_t j = y1; j < y2; ++j)
+			{
+				field->field[i][j].first = x;
+				field->field[i][j].second = y;
+			}
+		}
+	}
+
+	return field;
+}
+
+// TODO: Конфиг с именами фалов
+std::vector<VectorField*> VectorField::loadAllFromDir(std::string const& path)
+{
+	std::vector<VectorField*> fields;
+
+	/* for (auto const& file : std::filesystem::directory_iterator(path))
+	{
+		if (file.path().string().find(".fld") != std::string::npos)
+		{
+			VectorField* field = loadFromFile(file.path().string());
+
+			if (field != nullptr)
+			{
+				fields.push_back(field);
+			}
+		}
+	} */
+
+	for (size_t i = 1; i <= 11; ++i)
+	{
+		VectorField* field = loadFromFile(path + "//field" + std::to_string(i) + ".fld");
+
+		if (field != nullptr)
+		{
+			fields.push_back(field);
+		}
+	}
+
+	return fields;
+}
+
+VectorField* VectorField::customField(size_t width, size_t height)
+{
+	VectorField* field = new VectorField(width, height);
+
+	for (int i = 0; i < width; ++i)
+	{
+		for (int j = 0; j < height; ++j)
+		{
+			float dev = i * i + j * j;
+
+			// field->field[i][j].first = -j;
+			// field->field[i][j].second = i;
+
+			field->field[i][j].first = 0;
+			field->field[i][j].second = 100;
+		}
+	}
+
+	return field;
+}
 
 VectorField::VectorField(size_t x, size_t y) : field(x, std::vector<std::pair<int, int>>(y, { 0, 0 }))
 {
@@ -20,7 +114,7 @@ VectorField::VectorField(size_t x, size_t y) : field(x, std::vector<std::pair<in
 		for (size_t j = 0; j < y; ++j)
 		{
 			field[i][j].first = 0;
-			field[i][j].second = 4;
+			field[i][j].second = 0;
 		}
 	}
 }
@@ -77,8 +171,8 @@ float* VectorField::raw_data() const
 			float q = (float)field[i][j].first / (float)x;
 			float p = (float)field[i][j].second / (float)y;
 
-			srcData[2 * (j + i * x) + 0] = -(float)field[i][j].first / (float)x;
-			srcData[2 * (j + i * x) + 1] = -(float)field[i][j].second / (float)y;
+			srcData[2 * (j + i * x) + 0] = q;
+			srcData[2 * (j + i * x) + 1] = p;
 		}
 	}
 
@@ -101,8 +195,11 @@ void VectorField::invert()
 			size_t new_i = i + vec.first;
 			size_t new_j = j + vec.second;
 
-			newField[new_i][new_j].first = -vec.first;
-			newField[new_i][new_j].second = -vec.second;
+			newField[new_i % x][new_j % y].first = -vec.first;
+			newField[new_i % x][new_j % y].second = -vec.second;
+
+			//newField[i][j].first = -vec.first;
+			//newField[i][j].second = -vec.second;
 		}
 	}
 
@@ -120,8 +217,8 @@ void VectorField::inv()
 		{
 			elem_t elem = field[i][j];
 
-			field[i][j].first = -elem.first;
-			field[i][j].second = -elem.second;
+			field[i + elem.first][j + elem.second].first = -elem.first;
+			field[i + elem.first][j + elem.second].second = -elem.second;
 		}
 	}
 

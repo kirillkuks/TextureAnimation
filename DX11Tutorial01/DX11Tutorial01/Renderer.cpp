@@ -70,8 +70,13 @@ struct SimpleVertex
 
 struct ConstantBuffer
 {
-	XMVECTORI32 secs; // x - elapsed framse, y - cur texture index, z - cur frame counter, w - fields num
+	XMVECTORI32 secs; // x - scale factor
 	XMVECTORI32 stepsNum;
+};
+
+struct ScaleBuffer
+{
+	XMVECTORF32 scale; // x - scale factor
 };
 
 #define SAFE_RELEASE(p) \
@@ -127,6 +132,10 @@ Renderer::Renderer()
 	, m_pAnimationTextureVectorField(NULL)
 
 	, m_pConstantBuffer(NULL)
+	, m_pScaleBuffer(NULL)
+
+	, m_pOriginTexture(NULL)
+	, m_pOriginTextureSRV(NULL)
 
 	, vectorField{ nullptr }
 	, image{ nullptr }
@@ -287,6 +296,8 @@ void Renderer::Resize(UINT width, UINT height)
 
 bool Renderer::Update()
 {
+	static float remaindedSec = 0.0;
+
 	size_t usec = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 	if (m_usec == 0)
 	{
@@ -294,31 +305,42 @@ bool Renderer::Update()
 		m_psec = usec;
 	}
 
+	float timeBetweenFrames = (usec - m_psec) / 1000000.0f;
+	m_psec = usec;
+
+	// Костыль
 	if (m_esec == 0)
 	{
 		m_esec = usec;
 	}
-
 	double elapsedSecForPeriod = (usec - m_esec) / 1000000.0;
-	if (elapsedSecForPeriod < m_frameLength)
-	{
-		return true;
-	}
-
-	int elapsedSteps = (int)((float)elapsedSecForPeriod / m_frameLength);
+	/* int elapsedSteps = (int)((float)elapsedSecForPeriod / m_frameLength);
 	{
 		m_pFieldSwapper->IncStep(elapsedSteps);
-	}
-
-	m_esec = 0;
+		m_esec = 0;
+	} */
 
 	double elapsedSec = (usec - m_usec) / 1000000.0;
-	double elapSecForPeriod = (usec - m_psec) / 1000000.0;
+	// double elapSecForPeriod = (usec - m_psec) / 1000000.0;
+
+	// timeBetweenFrames = 1 / 250.0f;
+
+	int scaleFactor = (int)((timeBetweenFrames + remaindedSec) / m_frameLength); // + 
+	remaindedSec = timeBetweenFrames + remaindedSec - scaleFactor * m_frameLength;
+	float scaleRemainder = remaindedSec / m_frameLength;
+
+	// static std::ofstream o("out.txt");
+	// o << timeBetweenFrames << " | " << remaindedSec << " | " << scaleFactor << " | " << scaleRemainder << std::endl;
+
+	m_pFieldSwapper->IncStep(scaleFactor);
 
 	ConstantBuffer cb1;
-	cb1.secs = { elapsedSteps, m_pFieldSwapper->CurrentFieldIndex(), m_pFieldSwapper->CurrentStepsNum(), m_pFieldSwapper->TotalFieldsNum() };
-	cb1.stepsNum = { m_pFieldSwapper->StepsPerFieldByIndex(0), m_pFieldSwapper->StepsPerFieldByIndex(1), 0, 0 };
+	cb1.secs = { scaleFactor, 0, 0, 0 };
 	m_pContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &cb1, 0, 0);
+
+	ScaleBuffer sb;
+	sb.scale = { scaleRemainder, 0, 0, 0 };
+	m_pContext->UpdateSubresource(m_pScaleBuffer, 0, NULL, &sb, 0, 0);
 
 	ModelBuffer cb;
 	XMMATRIX m = XMMatrixRotationAxis({ 0,1,0 }, (float)elapsedSec * 0.5f);
@@ -340,13 +362,12 @@ bool Renderer::Update()
 	cb.modelMatrix = XMMatrixTranspose(XMMatrixTranslation(TransPos2.f[0], TransPos2.f[1], TransPos2.f[2]));
 	cb.objColor = XMVECTORF32{ 0.1f, 0, 0.6f, 0.8f };
 	m_pContext->UpdateSubresource(m_pModelBuffer4, 0, NULL, &cb, 0, 0);
-	// m_pContext->Map()
 
 	// Setup scene buffer
 	SceneBuffer scb;
 
 	static const float nearPlane = 0.001f;
-	static const float farPlane = 100.0f;
+	static const float farPlane = 10000.0f;
 	static const float fov = (float)M_PI * 2.0 / 3.0;
 
 	XMMATRIX view = XMMatrixInverse(NULL, XMMatrixTranslation(0, 0, -m_dist) * XMMatrixRotationAxis({ 1,0,0 }, m_lat) * XMMatrixRotationAxis({ 0,1,0 }, m_lon));
@@ -414,7 +435,7 @@ bool Renderer::Render()
 
 	{
 		static const float nearPlane = 0.001f;
-		static const float farPlane = 100.0f;
+		static const float farPlane = 10000.0f;
 		static const float fov = (float)M_PI * 2.0 / 3.0;
 
 		XMMATRIX view = XMMatrixInverse(NULL, XMMatrixTranslation(0, 0, -m_dist) * XMMatrixRotationAxis({ 1,0,0 }, m_lat) * XMMatrixRotationAxis({ 0,1,0 }, m_lon));
@@ -425,12 +446,16 @@ bool Renderer::Render()
 
 		// m_pMesh->Draw(XMMatrixIdentity(), vp);
 		m_pModel->SetTexture(m_pPingPong->TargetTexture(), m_pPingPong->TargetSRV());
+		m_pModel->SetOriginTexture(m_pOriginTexture, m_pOriginTextureSRV);
+		m_pModel->SetShaderResources({ m_pFieldSwapper->CurrentVectorFieldSRV() });
+		m_pModel->SetConstantBuffers({ m_pScaleBuffer });
 		m_pModel->Draw(vp);
 	}
 
 	RenderScene();
 
 	HRESULT result = m_pSwapChain->Present(0, 0);
+	m_pPingPong->Swap();
 	assert(SUCCEEDED(result));
 
 	return SUCCEEDED(result);
@@ -896,6 +921,20 @@ HRESULT Renderer::CreateScene()
 
 		assert(SUCCEEDED(result));
 	}
+	if (SUCCEEDED(result))
+	{
+		D3D11_BUFFER_DESC cbDesc = { 0 };
+		cbDesc.ByteWidth = sizeof(ScaleBuffer);
+		cbDesc.Usage = D3D11_USAGE_DEFAULT;
+		cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		cbDesc.CPUAccessFlags = 0;
+		cbDesc.MiscFlags = 0;
+		cbDesc.StructureByteStride = 0;
+
+		result = m_pDevice->CreateBuffer(&cbDesc, NULL, &m_pScaleBuffer);
+
+		assert(SUCCEEDED(result));
+	}
 
 	// Create scene constant buffer
 	if (SUCCEEDED(result))
@@ -956,7 +995,7 @@ HRESULT Renderer::CreateScene()
 		assert(m_pPingPong);
 
 		int x, y, n;
-		unsigned char* pixels = stbi_load("Assets//SwordV3.jpg", &x, &y, &n, 0);
+		unsigned char* pixels = stbi_load("Assets//SwordV12.png", &x, &y, &n, 0);
 		assert(pixels != nullptr);
 
 		image = new Image(pixels, x, y, n);
@@ -964,19 +1003,38 @@ HRESULT Renderer::CreateScene()
 		int len;
 		unsigned char* png = stbi_write_png_to_mem(image->getImageData(), 0, x, y, n, &len);
 
+		{
+			result = CreateWICTextureFromFile(m_pDevice, m_pContext, L"Assets//Sword.jpg", (ID3D11Resource**)&m_pOriginTexture, &m_pOriginTextureSRV);
+			assert(SUCCEEDED(result));
+		}
 
 		{
-			vectorField = new VectorField(x, y);
-			assert(vectorField);
 			m_pFieldSwapper = new FieldSwapper();
 			assert(m_pFieldSwapper);
 
-			CreateVectorFieldTexture();
+			// Несколько полей
+			/*std::vector<VectorField*> fields = VectorField::loadAllFromDir("Fields//new_sword");
 
-			// vectorField->inv();
-			CreateVectorFieldTexture();
+			for (auto& field : fields)
+			{
+				vectorField = field;
+				vectorField->invert();
 
-			m_pFieldSwapper->SetUpStepPerFiled({ 7, 12 });
+				CreateVectorFieldTexture();
+
+				delete field;
+			}
+
+			// TODO: Reader
+			m_pFieldSwapper->SetUpStepPerFiled({ 10, 5, 10 });*/
+
+			// Одно поле
+			vectorField = VectorField::customField(2048, 2048);
+			vectorField->invert();
+			CreateVectorFieldTexture();
+			delete vectorField;
+
+			m_pFieldSwapper->SetUpStepPerFiled({ 1000 });
 		}
 
 		{
@@ -1168,6 +1226,10 @@ void Renderer::DestroyScene()
 	SAFE_RELEASE(m_pAnimationTextureInputLayout);
 
 	SAFE_RELEASE(m_pConstantBuffer);
+	SAFE_RELEASE(m_pScaleBuffer);
+
+	SAFE_RELEASE(m_pOriginTexture);
+	SAFE_RELEASE(m_pOriginTextureSRV);
 
 	// SAFE_RELEASE(m_pAnimationTextureVectorField);
 	// SAFE_RELEASE(m_pAnimationTextureVectorFieldSRV);
@@ -1199,18 +1261,20 @@ void Renderer::RenderScene()
 	m_pContext->PSSetShader(m_pPixelShader, NULL, 0);
 
 	{
-		ID3D11Buffer* constBuffers[] = { m_pSceneBuffer };
+		ID3D11Buffer* constBuffers[] = { m_pSceneBuffer, m_pScaleBuffer };
 		m_pContext->VSSetConstantBuffers(1, 1, constBuffers);
-		m_pContext->PSSetConstantBuffers(1, 1, constBuffers);
+		m_pContext->PSSetConstantBuffers(1, 2, constBuffers);
 	}
+
 
 	m_pContext->RSSetState(m_pRasterizerState);
 	m_pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// ID3D11ShaderResourceView* textures[] = {m_pTextureCopySRV, m_pTextureNMSRV};
-	std::vector<ID3D11ShaderResourceView*> texts{m_pPingPong->TargetSRV(), m_pTextureNMSRV};
-	// ID3D11ShaderResourceView* textures[] = {m_pPingPong->TargetSRV(), m_pTextureNMSRV};
-	m_pContext->PSSetShaderResources(0, 2, texts.data());
+	// std::vector<ID3D11ShaderResourceView*> texts{m_pPingPong->TargetSRV(), m_pTextureNMSRV, m_pFieldSwapper->FieldSRVByIndex(0)};
+	std::vector<ID3D11ShaderResourceView*> texts{m_pPingPong->TargetSRV(), m_pOriginTextureSRV, m_pFieldSwapper->CurrentVectorFieldSRV()};
+	// ID3D11ShaderResourceView* s = m_pFieldSwapper->CurrentVectorFieldSRV();
+
+	m_pContext->PSSetShaderResources(0, 3, texts.data());
 
 	ID3D11SamplerState* samplers[] = {m_pSamplerState};
 	m_pContext->PSSetSamplers(0, 1, samplers);
@@ -1326,10 +1390,8 @@ void Renderer::RenderTexture()
 	m_pContext->RSSetState(m_pRasterizerState);
 	m_pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	//assert(m_pPingPong->SourceSRV() == m_pTextureCopySRV);
-	// m_pFieldSwapper->CurrentVectorFieldSRV();
 	ID3D11ShaderResourceView* textures[3] = { m_pPingPong->SourceSRV(), 
-		m_pFieldSwapper->FieldSRVByIndex(0),
+		m_pFieldSwapper->CurrentVectorFieldSRV(),
 		m_pFieldSwapper->FieldSRVByIndex(1),
 	};
 
@@ -1342,8 +1404,6 @@ void Renderer::RenderTexture()
 	m_pContext->PSSetConstantBuffers(0, 1, constBuffers);
 
 	m_pContext->DrawIndexed(6, 0, 0);
-
-	m_pPingPong->Swap();
 }
 
 ID3D11VertexShader* Renderer::CreateVertexShader(LPCTSTR shaderSource, ID3DBlob** ppBlob)
@@ -1431,6 +1491,7 @@ ID3D11PixelShader* Renderer::CreatePixelShader(LPCTSTR shaderSource)
 
 HRESULT Renderer::LoadModel() // Change
 {
+	// VectorField::loadFromFile("Fields//sword_field.fld");
 	// Model model(m_pDevice, m_pContext, "Assets//models//artorias//scene.gltf");
 	m_pModel = new Model(m_pDevice, m_pContext, "Assets//models//artorias//scene.gltf");
 	m_pModel->SetShaders(m_pVertexShader, m_pPixelShader, m_pInputLayout);

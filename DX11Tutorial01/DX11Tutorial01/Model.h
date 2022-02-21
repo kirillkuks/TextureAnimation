@@ -8,6 +8,7 @@
 #include <DirectXMath.h>
 
 #include "Mesh.h"
+#include "Texture.h"
 
 using namespace DirectX;
 
@@ -30,8 +31,12 @@ private:
 
 	std::vector<Mesh*> m_aMeshes;
 	std::vector<XMMATRIX> m_aMatrices;
+	std::vector<Texture*> m_aTextures;
 
 	std::string fname;
+
+	// float scale_factor = 0.0005f;
+	float scale_factor = 1;
 
 
 private:
@@ -40,6 +45,8 @@ private:
 	void ParseNode(size_t nodeInd, XMMATRIX matrix = XMMatrixIdentity());
 
 	void LoadMesh(size_t ind);
+
+	Texture* LoadTexture(size_t imageInd);
 
 	std::vector<Vertex> CreateVerteciesBuffer(std::vector<XMVECTORF32> const& positions,
 		std::vector<XMFLOAT3> const& normals,
@@ -66,5 +73,8 @@ public:
 
 	void Draw(XMMATRIX sceneMatrix);
 
-	void SetTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV); // Change
+	void SetTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV);   // Change
+	void SetOriginTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV);   // Change
+	void SetShaderResources(std::vector<ID3D11ShaderResourceView*> const& resources);   // Change
+	void SetConstantBuffers(std::vector<ID3D11Buffer*> const& buffers);   // Change
 };

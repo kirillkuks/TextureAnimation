@@ -1,11 +1,18 @@
 #pragma once
 #include <vector>
+#include <string>
 
 class VectorField
 {
 	using elem_t = std::pair<int, int>;
 private:
 	std::vector<std::vector<elem_t>> field;
+
+public:
+	static VectorField* loadFromFile(std::string const& filename);
+	static std::vector<VectorField*> loadAllFromDir(std::string const& path);
+
+	static VectorField* vortexField(size_t width, size_t height);
 
 public:
 	VectorField(size_t x, size_t y);
