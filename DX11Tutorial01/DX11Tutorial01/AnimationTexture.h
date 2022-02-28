@@ -4,6 +4,7 @@
 #include <dxgi.h>
 
 #include <vector>
+#include <string>
 
 #include "FieldSwapper.h"
 #include "PingPong.h"
@@ -51,5 +52,5 @@ public:
 
 	// TODO:
 	// Render
-	// 
+	// Load by file name
 };

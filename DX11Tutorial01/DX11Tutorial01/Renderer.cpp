@@ -1061,6 +1061,7 @@ HRESULT Renderer::CreateScene()
 			m_pPingPong->SetupResources(PingPong::ResourceType::SOURCE, pTextureSrc, pTextureSrcRTV, pTextureSrcSRV);
 		
 			
+			// Test
 			m_pAnimationTexture = new AnimationTexture(m_pDevice, m_pContext, x, y);
 			assert(m_pAnimationTexture != nullptr);
 
@@ -1258,6 +1259,8 @@ void Renderer::DestroyScene()
 
 	delete m_pMesh;
 	delete m_pModel;
+
+	delete m_pAnimationTexture;
 }
 
 void Renderer::RenderScene()
