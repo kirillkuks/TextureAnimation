@@ -141,6 +141,8 @@ Renderer::Renderer()
 	, image{ nullptr }
 	, m_pPingPong{ nullptr }
 	, m_pFieldSwapper { nullptr }
+
+	, m_pAnimationTexture { nullptr }
 {
 }
 
@@ -332,14 +334,14 @@ bool Renderer::Update()
 	// static std::ofstream o("out.txt");
 	// o << timeBetweenFrames << " | " << remaindedSec << " | " << scaleFactor << " | " << scaleRemainder << std::endl;
 
-	m_pFieldSwapper->IncStep(scaleFactor);
+	// m_pFieldSwapper->IncStep(scaleFactor);
 
 	ConstantBuffer cb1;
 	cb1.secs = { scaleFactor, 0, 0, 0 };
 	m_pContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &cb1, 0, 0);
 
 	ScaleBuffer sb;
-	sb.scale = { scaleRemainder, 0, 0, 0 };
+	sb.scale = { scaleRemainder, (float)m_pFieldSwapper->CurrentInterpolateType(), 0, 0 };
 	m_pContext->UpdateSubresource(m_pScaleBuffer, 0, NULL, &sb, 0, 0);
 
 	ModelBuffer cb;
@@ -395,7 +397,11 @@ bool Renderer::Update()
 
 	m_pContext->UpdateSubresource(m_pSceneBuffer, 0, NULL, &scb, 0, 0);
 
-	return Render();
+	bool res = Render();
+
+	m_pFieldSwapper->IncStep(scaleFactor);
+
+	return res;
 }
 
 bool Renderer::Render()
@@ -1013,7 +1019,7 @@ HRESULT Renderer::CreateScene()
 			assert(m_pFieldSwapper);
 
 			// Несколько полей
-			/*std::vector<VectorField*> fields = VectorField::loadAllFromDir("Fields//new_sword");
+			std::vector<VectorField*> fields = VectorField::loadAllFromDir("Fields//sword_interpol");
 
 			for (auto& field : fields)
 			{
@@ -1026,17 +1032,19 @@ HRESULT Renderer::CreateScene()
 			}
 
 			// TODO: Reader
-			m_pFieldSwapper->SetUpStepPerFiled({ 10, 5, 10 });*/
+			m_pFieldSwapper->SetUpStepPerFiled({ 15, 1 });
+			m_pFieldSwapper->SetUpInterpolateType({ 0, 1 });
 
 			// Одно поле
-			vectorField = VectorField::customField(2048, 2048);
+			/*vectorField = VectorField::customField(2048, 2048);
 			vectorField->invert();
 			CreateVectorFieldTexture();
 			delete vectorField;
 
-			m_pFieldSwapper->SetUpStepPerFiled({ 1000 });
+			m_pFieldSwapper->SetUpStepPerFiled({ 1000 });*/
 		}
 
+		// Добавить в отдельный в класс анимированной текстуры
 		{
 			ID3D11Texture2D* pTextureSrc(nullptr);
 			ID3D11RenderTargetView* pTextureSrcRTV(nullptr);
@@ -1051,7 +1059,16 @@ HRESULT Renderer::CreateScene()
 			assert(SUCCEEDED(result));
 
 			m_pPingPong->SetupResources(PingPong::ResourceType::SOURCE, pTextureSrc, pTextureSrcRTV, pTextureSrcSRV);
+		
+			
+			m_pAnimationTexture = new AnimationTexture(m_pDevice, m_pContext, x, y);
+			assert(m_pAnimationTexture != nullptr);
+
+			m_pAnimationTexture->AddBackground(m_pOriginTexture, m_pOriginTextureSRV);
+			m_pAnimationTexture->AddLayer(pTextureSrc, pTextureSrcSRV, pTextureSrcRTV);
 		}
+
+		delete png;
 	}
 	if (SUCCEEDED(result))
 	{
@@ -1061,7 +1078,7 @@ HRESULT Renderer::CreateScene()
 	if (SUCCEEDED(result))
 	{
 		result = LoadModel();
-	}
+	} 
 
 	return result;
 }

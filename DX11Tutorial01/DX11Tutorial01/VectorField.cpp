@@ -79,19 +79,23 @@ VectorField* VectorField::customField(size_t width, size_t height)
 {
 	VectorField* field = new VectorField(width, height);
 
-	for (int i = 0; i < width; ++i)
+	for (size_t i = 0; i < width; ++i)
 	{
-		for (int j = 0; j < height; ++j)
+		for (size_t j = 0; j < height; ++j)
 		{
-			float dev = i * i + j * j;
+			field->field[i][j].first = 1000;
+			field->field[i][j].second = 0;
+		}
+	}
 
-			// field->field[i][j].first = -j;
-			// field->field[i][j].second = i;
-
+	/*for (size_t i = 0; i < width; ++i)
+	{
+		for (size_t j = 120; j < height; ++j)
+		{
 			field->field[i][j].first = 0;
 			field->field[i][j].second = 100;
 		}
-	}
+	}*/
 
 	return field;
 }
@@ -171,8 +175,8 @@ float* VectorField::raw_data() const
 			float q = (float)field[i][j].first / (float)x;
 			float p = (float)field[i][j].second / (float)y;
 
-			srcData[2 * (j + i * x) + 0] = q;
-			srcData[2 * (j + i * x) + 1] = p;
+			srcData[2 * (i + j * x) + 0] = q;
+			srcData[2 * (i + j * x) + 1] = p;
 		}
 	}
 
@@ -192,14 +196,14 @@ void VectorField::invert()
 		{
 			auto& vec = field[i][j];
 
-			size_t new_i = i + vec.first;
-			size_t new_j = j + vec.second;
+			int new_i = i + vec.first;
+			int new_j = j + vec.second;
 
-			newField[new_i % x][new_j % y].first = -vec.first;
-			newField[new_i % x][new_j % y].second = -vec.second;
+			// newField[new_i % x][new_j % y].first = -vec.first;
+			// newField[new_i % x][new_j % y].second = -vec.second;
 
-			//newField[i][j].first = -vec.first;
-			//newField[i][j].second = -vec.second;
+			newField[i][j].first = -vec.first;
+			newField[i][j].second = -vec.second;
 		}
 	}
 

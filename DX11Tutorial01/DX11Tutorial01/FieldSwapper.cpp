@@ -55,6 +55,18 @@ int FieldSwapper::CurrentStepsNum() const
 	return (int)m_iCurStepsNum;
 }
 
+///////////////////////////////////
+int FieldSwapper::CurrentInterpolateType() const
+{
+	if (m_aInterplateTypes.size() <= m_iCurFieldIndex)
+	{
+		return 0;
+	}
+
+	return m_aInterplateTypes[m_iCurFieldIndex];
+}
+///////////////////////////////////
+
 int FieldSwapper::TotalFieldsNum() const
 {
 	return (int)m_aFeildsResources.size();
@@ -84,6 +96,13 @@ void FieldSwapper::SetUpStepPerFiled(std::vector<size_t> const& stepsPerField)
 	m_aStepsPerField = stepsPerField;
 	m_iCurStepsNum = 0;
 }
+
+///////////////////////////////////
+void FieldSwapper::SetUpInterpolateType(std::vector<int> const& interpolateTypes)
+{
+	m_aInterplateTypes = interpolateTypes;
+}
+///////////////////////////////////
 
 void FieldSwapper::IncStep(size_t inc)
 {

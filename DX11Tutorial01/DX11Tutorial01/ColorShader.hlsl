@@ -19,7 +19,7 @@ cbuffer SceneBuffer : register(b1)
 
 cbuffer ConstantBuffer : register(b2)
 {
-	float4 scale; // x - scale factor
+	float4 scale; // x - scale factor // y- interpolate type (int)
 }
 
 Texture2D ColorTexture : register(t0);
@@ -60,9 +60,33 @@ VSOutput VS(in VSInput vertex)
 	return output;
 }
 
-float len(float2 vec)
+float2 Line(float t, float2 x1, float2 x2)
 {
-	return sqrt(vec.r * vec.r + vec.g + vec.g);
+	return t * x1 + (1 - t) * x2;
+}
+
+float2 HalfCircle(float t, float2 x1, float2 x2, float2 vec)
+{
+	float2 newCoord1 = float2(0, 0);
+	
+	float pi = 3.14159265359;
+	t = pi * t; // или pi * t чтобы в другую сторону
+	float delta_x = (x1.r - x2.r);
+	float delta_y = (x1.g - x2.g);
+
+	float r = sqrt(delta_x * delta_x + delta_y * delta_y) / 2;
+	float2 center = (x1 + x2) / 2;
+
+	float2 bas = float2(1, 0);
+
+	float angle = 0;
+	angle = (bas.r * (vec.r) + bas.g * (vec.g)) / (1 * sqrt(vec.r * vec.r + vec.g * vec.g));
+	float start = acos(angle);
+
+	newCoord1.r = 5 * r * cos(t + start) + center.r;
+	newCoord1.g = r * sin(t + start) + center.g;
+
+	return newCoord1;
 }
 
 float4 PS(in VSOutput input) : SV_Target0
@@ -75,21 +99,26 @@ float4 PS(in VSOutput input) : SV_Target0
 	float ddy = VectorField.Sample(Sampler, coord).g;
 
 	float2 x2 = input.uv;
-	float2 x1 = x2 + float2(ddy, ddx);
+	float2 x1 = x2 + float2(ddx, ddy);
 
 	float2 xc = (x1 + x2) / 2;
 
 	float t = scale.x;
 
-	float2 newCoord = coord + scale.x * float2(ddy, ddx);
+	float2 newCoord = coord + scale.x * float2(ddx, ddy);
 
 	float2 newCoord1 = t * x1 + (1 - t) * x2;
 
 	float pi = 3.14159265359;
 
-	// полукруг
+	int sw = (int)scale.y;
+	if (sw == 0)
 	{
-		t = -pi * t; // или pi * t чтобы в другую сторону
+		newCoord1 = Line(t, x1, x2);
+	}
+	else // полукруг
+	{
+		/*t = -pi * t; // или pi * t чтобы в другую сторону
 		float delta_x = (x1.r - x2.r);
 		float delta_y = (x1.g - x2.g);
 
@@ -97,14 +126,16 @@ float4 PS(in VSOutput input) : SV_Target0
 		float2 center = (x1 + x2) / 2;
 
 		float2 bas = float2(1, 0);
-		float2 vec = float2(-ddy, -ddx);
+		float2 vec = float2(-ddx, -ddy);
 
 		float angle = (bas.r * vec.r + bas.g * vec.g) / (len(bas) * len(vec));
-		angle = (bas.r * (-ddy) + bas.g * (-ddx)) / (1 * sqrt(ddy * ddy + ddx * ddx));
+		angle = (bas.r * (-ddx) + bas.g * (-ddy)) / (1 * sqrt(ddx * ddx + ddy * ddy));
 		float start = acos(angle);
 
 		newCoord1.r = r * cos(t + start) + center.r;
-		newCoord1.g = r * sin(t + start) + center.g;
+		newCoord1.g = r * sin(t + start) + center.g;*/
+
+		newCoord1 = HalfCircle(t, x1, x2, float2(-ddx, -ddy));
 	}
 
 	float3 matColor = ColorTexture.Sample(Sampler, newCoord1).rgb;   // анимированный слой

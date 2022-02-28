@@ -77,7 +77,7 @@ float4 PS(in VSOutput input) : SV_Target0
 		}
 	}*/
 
-	color.rgb = Texture.Sample(Sampler, vec + scale * float2(ddy, ddx)).rgb;
+	color.rgb = Texture.Sample(Sampler, vec + scale * float2(ddx, ddy)).rgb;
 
 	/*float3 I_i_j = Texture.Sample(Sampler, vec).rgb;
 	

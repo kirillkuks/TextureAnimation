@@ -11,6 +11,8 @@
 #include "Model.h"
 #include "Mesh.h"
 
+#include "AnimationTexture.h"
+
 class Renderer
 {
 public:
@@ -115,6 +117,8 @@ private:
 
 	ID3D11Texture2D* m_pOriginTexture;
 	ID3D11ShaderResourceView* m_pOriginTextureSRV;
+
+	AnimationTexture* m_pAnimationTexture;
 
 	Mesh* m_pMesh;  // Change
 	Model* m_pModel;

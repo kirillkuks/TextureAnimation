@@ -31,6 +31,9 @@ private:
 	size_t m_iCurStepsNum;
 	size_t m_iCurStepsCounter;
 
+	// заменить на енам
+	std::vector<int> m_aInterplateTypes;
+
 public:
 	FieldSwapper();
 	~FieldSwapper();
@@ -49,4 +52,6 @@ public:
 	void SetUpStepPerFiled(std::vector<size_t> const& stepsPerField);
 	void IncStep(size_t inc = 1);
 
+	void SetUpInterpolateType(std::vector<int> const& interpolateTypes);
+	int CurrentInterpolateType() const;
 };

@@ -12,7 +12,7 @@ public:
 	static VectorField* loadFromFile(std::string const& filename);
 	static std::vector<VectorField*> loadAllFromDir(std::string const& path);
 
-	static VectorField* vortexField(size_t width, size_t height);
+	static VectorField* customField(size_t width, size_t height);
 
 public:
 	VectorField(size_t x, size_t y);
