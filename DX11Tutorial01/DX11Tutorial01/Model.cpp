@@ -70,6 +70,18 @@ void Model::SetTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textu
 	m_aMeshes[3]->SetTexture(texture, textureSRV);   // Change
 }
 
+void Model::SetTextures(std::vector<AnimationTexture*> const& textures)
+{
+	/*
+	for (size_t i = 0; i < m_aMeshes.size(); ++i)
+	{
+		m_aMeshes[i]->SetTextures(textures[i])
+	}
+	*/
+
+	m_aMeshes[3]->SetTexture(textures[0]); // Change
+}
+
 void Model::SetOriginTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV)
 {
 	m_aMeshes[3]->SetOriginTexture(texture, textureSRV);

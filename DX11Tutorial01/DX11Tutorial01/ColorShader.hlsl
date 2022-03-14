@@ -22,11 +22,13 @@ cbuffer ConstantBuffer : register(b2)
 	float4 scale; // x - scale factor // y- interpolate type (int)
 }
 
-Texture2D ColorTexture : register(t0);
-Texture2D LayerTexture : register(t1);
-// Texture2D NormalTexture : register(t1);
+Texture2D LayerTexture : register(t0); // фон
 
+Texture2D ColorTexture : register(t1); // слой 1
 Texture2D VectorField : register(t2);
+
+Texture2D ColorTexture2 : register(t3); // слой 2
+Texture2D VectorField2 : register(t4);
 
 SamplerState Sampler : register(s0);
 
@@ -91,6 +93,48 @@ float2 HalfCircle(float t, float2 x1, float2 x2, float2 vec)
 
 float4 PS(in VSOutput input) : SV_Target0
 {
+	{
+		float d = 1 / 2048.0;
+		float t = scale.x;
+		float pi = 3.14159265359;
+
+		float T = 2 * pi * t / 1;
+
+		float a11 = cos(T);
+		float a12 = sin(T);
+		float a21 = -sin(T);
+		float a22 = cos(T);
+
+		float2 coord = input.uv;
+		float2 center = float2(1024 * d, 1024 * d);  // 778 647
+
+		float2 newCoord;
+		newCoord.x = a11 * (coord.x - center.x) + a12 * (coord.y - center.y) + center.x;
+		newCoord.y = a21 * (coord.x - center.x) + a22 * (coord.y - center.y) + center.y;
+
+		float4 color = float4(0, 0, 0, 0);
+		Texture2D textures[] = { ColorTexture, ColorTexture2 };
+		int texturesNum = 2;
+
+		float3 layerColor = LayerTexture.Sample(Sampler, coord).rgb;   // фон
+
+		for (int i = texturesNum - 1; i >= 0; --i)
+		{
+			float3 matColor = textures[i].Sample(Sampler, newCoord).rgb;
+
+			if (matColor.r != 0 || matColor.g != 0 || matColor.b != 0)  // :-(
+			{
+				color.xyz = matColor;
+				break;
+			}
+
+			color.xyz = layerColor;
+		}
+
+		return color;
+	}
+
+
 	float4 color = float4(0, 0, 0, 0);
 
 	float2 coord = input.uv;
@@ -138,17 +182,28 @@ float4 PS(in VSOutput input) : SV_Target0
 		newCoord1 = HalfCircle(t, x1, x2, float2(-ddx, -ddy));
 	}
 
-	float3 matColor = ColorTexture.Sample(Sampler, newCoord1).rgb;   // анимированный слой
-	// float3 matColor = ColorTexture.Sample(Sampler, coord).rgb;
+	// Поле для второй текстуры
+	ddx = VectorField2.Sample(Sampler, coord).r;
+	ddy = VectorField2.Sample(Sampler, coord).g;
+	float2 newCoord2 = coord + scale.x * float2(ddx, ddy);
+
+	Texture2D textures[] = { ColorTexture, ColorTexture2 };
+	float2 newCoords[] = { newCoord1, newCoord2 };
+	int texturesNum = 2;
+
 	float3 layerColor = LayerTexture.Sample(Sampler, coord).rgb;   // фон
 
-	if (matColor.r == 0 && matColor.g == 0 && matColor.b == 0)
+	for (int i = texturesNum - 1; i >= 0; --i)
 	{
+		float3 matColor = textures[i].Sample(Sampler, newCoords[i]).rgb;
+		
+		if (matColor.r != 0 || matColor.g != 0 || matColor.b != 0)  // :-(
+		{
+			color.xyz = matColor;
+			break;
+		}
+
 		color.xyz = layerColor;
-	}
-	else
-	{
-		color.xyz = matColor;
 	}
 
 	return color;

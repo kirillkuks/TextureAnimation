@@ -10,7 +10,6 @@
 #include "WICTextureLoader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image.h"
 #include "stb_image_write.h"
 #include "tiny_gltf.h"
@@ -342,6 +341,7 @@ bool Renderer::Update()
 
 	ScaleBuffer sb;
 	sb.scale = { scaleRemainder, (float)m_pFieldSwapper->CurrentInterpolateType(), 0, 0 };
+	sb.scale = { scaleRemainder, 0, 0, 0 };
 	m_pContext->UpdateSubresource(m_pScaleBuffer, 0, NULL, &sb, 0, 0);
 
 	ModelBuffer cb;
@@ -399,7 +399,8 @@ bool Renderer::Update()
 
 	bool res = Render();
 
-	m_pFieldSwapper->IncStep(scaleFactor);
+	// m_pFieldSwapper->IncStep(scaleFactor);
+	m_pAnimationTexture->IncrementStep(scaleFactor);
 
 	return res;
 }
@@ -408,12 +409,14 @@ bool Renderer::Render()
 {
 	m_pContext->ClearState();
 
-	{
-		ID3D11RenderTargetView* views[] = { m_pPingPong->RenderTargetView() };
+	/* {
+		// ID3D11RenderTargetView* views[] = { m_pPingPong->RenderTargetView() };
+		ID3D11RenderTargetView* views[] = { m_pAnimationTexture->GetLayersTexturesRTV()[0] };
 		m_pContext->OMSetRenderTargets(1, views, m_pATDepthDSV);
 
 		static const FLOAT backColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-		m_pContext->ClearRenderTargetView(m_pPingPong->RenderTargetView(), backColor);
+		// m_pContext->ClearRenderTargetView(m_pPingPong->RenderTargetView(), backColor);
+		m_pContext->ClearRenderTargetView(m_pAnimationTexture->GetLayersTexturesRTV()[0], backColor);
 		m_pContext->ClearDepthStencilView(m_pATDepthDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 		D3D11_VIEWPORT viewport{ 0, 0, (float)image->Width(), (float)image->Height(), 0.0f, 1.0f };
@@ -422,7 +425,9 @@ bool Renderer::Render()
 		m_pContext->RSSetScissorRects(1, &rect);
 
 		RenderTexture();
-	}
+	} */
+
+	m_pAnimationTexture->Render(m_pRasterizerState, m_pSamplerState, m_pConstantBuffer, m_pAnimationTexture->GetFields()[1]);
 
 	m_pContext->ClearState();
 
@@ -451,8 +456,11 @@ bool Renderer::Render()
 		XMMATRIX vp = XMMatrixTranspose(view * XMMatrixPerspectiveLH(width, height, nearPlane, farPlane));
 
 		// m_pMesh->Draw(XMMatrixIdentity(), vp);
-		m_pModel->SetTexture(m_pPingPong->TargetTexture(), m_pPingPong->TargetSRV());
-		m_pModel->SetOriginTexture(m_pOriginTexture, m_pOriginTextureSRV);
+		// m_pModel->SetTexture(m_pPingPong->TargetTexture(), m_pPingPong->TargetSRV());
+		m_pModel->SetTexture(m_pAnimationTexture->GetLayersTextures()[0], m_pAnimationTexture->GetLayersTargetTexturesSRV()[0]);
+		m_pModel->SetTextures({ m_pAnimationTexture });
+		// m_pModel->SetOriginTexture(m_pOriginTexture, m_pOriginTextureSRV);
+		m_pModel->SetOriginTexture(m_pOriginTexture, m_pAnimationTexture->GetBackgroundTextureSRV());
 		m_pModel->SetShaderResources({ m_pFieldSwapper->CurrentVectorFieldSRV() });
 		m_pModel->SetConstantBuffers({ m_pScaleBuffer });
 		m_pModel->Draw(vp);
@@ -461,7 +469,8 @@ bool Renderer::Render()
 	RenderScene();
 
 	HRESULT result = m_pSwapChain->Present(0, 0);
-	m_pPingPong->Swap();
+	// m_pPingPong->Swap();
+	m_pAnimationTexture->Swap();
 	assert(SUCCEEDED(result));
 
 	return SUCCEEDED(result);
@@ -989,12 +998,6 @@ HRESULT Renderer::CreateScene()
 	{
 		result = CreateTransparentObjects();
 	}
-
-	if (SUCCEEDED(result))
-	{
-		result = CreateAnimationTexturesResources();
-		assert(SUCCEEDED(result));
-	}
 	if (SUCCEEDED(result))
 	{
 		m_pPingPong = new PingPong();
@@ -1006,13 +1009,28 @@ HRESULT Renderer::CreateScene()
 
 		image = new Image(pixels, x, y, n);
 
-		int len;
-		unsigned char* png = stbi_write_png_to_mem(image->getImageData(), 0, x, y, n, &len);
+		m_pAnimationTexture = new AnimationTexture(m_pDevice, m_pContext, x, y);
+		assert(m_pAnimationTexture != nullptr);
 
-		{
-			result = CreateWICTextureFromFile(m_pDevice, m_pContext, L"Assets//Sword.jpg", (ID3D11Resource**)&m_pOriginTexture, &m_pOriginTextureSRV);
-			assert(SUCCEEDED(result));
-		}
+		result = m_pAnimationTexture->AddBackgroundByName("Assets//Sword.jpg");
+		assert(SUCCEEDED(result));
+
+		result = m_pAnimationTexture->AddLayerByName("Assets//SwordV15.png");
+		assert(SUCCEEDED(result));
+
+		result = m_pAnimationTexture->AddLayerByName("Assets//SwordV15.png");
+		assert(SUCCEEDED(result));
+
+		FieldSwapper* swapper = new FieldSwapper();
+		vectorField = VectorField::customField(x, y);
+		vectorField->setSnakeField();
+		vectorField->invert();
+		CreateVectorFieldTexture(swapper);
+		vectorField->invert();
+		CreateVectorFieldTexture(swapper);
+		swapper->SetUpStepPerFiled({ 6, 6 });
+		swapper->SetUpInterpolateType({ 0, 0 });
+		delete vectorField;
 
 		{
 			m_pFieldSwapper = new FieldSwapper();
@@ -1026,13 +1044,13 @@ HRESULT Renderer::CreateScene()
 				vectorField = field;
 				vectorField->invert();
 
-				CreateVectorFieldTexture();
+				CreateVectorFieldTexture(m_pFieldSwapper);
 
 				delete field;
 			}
 
 			// TODO: Reader
-			m_pFieldSwapper->SetUpStepPerFiled({ 15, 1 });
+			m_pFieldSwapper->SetUpStepPerFiled({ 150, 10 });
 			m_pFieldSwapper->SetUpInterpolateType({ 0, 1 });
 
 			// Одно поле
@@ -1043,33 +1061,16 @@ HRESULT Renderer::CreateScene()
 
 			m_pFieldSwapper->SetUpStepPerFiled({ 1000 });*/
 		}
+	
+		m_pAnimationTexture->SetUpFields({ m_pFieldSwapper, swapper });
+	}
+	if (SUCCEEDED(result))
+	{
+		result = CreateAnimationTexturesResources();
+		assert(SUCCEEDED(result));
 
-		// Добавить в отдельный в класс анимированной текстуры
-		{
-			ID3D11Texture2D* pTextureSrc(nullptr);
-			ID3D11RenderTargetView* pTextureSrcRTV(nullptr);
-			ID3D11ShaderResourceView* pTextureSrcSRV(nullptr);
-
-			result = CreateWICTextureFromMemory(m_pDevice, m_pContext, png, len, (ID3D11Resource**)&pTextureSrc, &pTextureSrcSRV, NULL);
-
-			if (SUCCEEDED(result))
-			{
-				result = m_pDevice->CreateRenderTargetView(pTextureSrc, NULL, &pTextureSrcRTV);
-			}
-			assert(SUCCEEDED(result));
-
-			m_pPingPong->SetupResources(PingPong::ResourceType::SOURCE, pTextureSrc, pTextureSrcRTV, pTextureSrcSRV);
-		
-			
-			// Test
-			m_pAnimationTexture = new AnimationTexture(m_pDevice, m_pContext, x, y);
-			assert(m_pAnimationTexture != nullptr);
-
-			m_pAnimationTexture->AddBackground(m_pOriginTexture, m_pOriginTextureSRV);
-			m_pAnimationTexture->AddLayer(pTextureSrc, pTextureSrcSRV, pTextureSrcRTV);
-		}
-
-		delete png;
+		result = m_pAnimationTexture->CreateAnimationTextureResources("TextureShader.hlsl", "TextureShader.hlsl");
+		assert(SUCCEEDED(result));
 	}
 	if (SUCCEEDED(result))
 	{
@@ -1084,7 +1085,7 @@ HRESULT Renderer::CreateScene()
 	return result;
 }
 
-HRESULT Renderer::CreateVectorFieldTexture()
+HRESULT Renderer::CreateVectorFieldTexture(FieldSwapper* swapper)
 {
 	D3D11_TEXTURE2D_DESC desc = {};
 	desc.Format = DXGI_FORMAT_R32G32_FLOAT;
@@ -1114,7 +1115,7 @@ HRESULT Renderer::CreateVectorFieldTexture()
 
 	assert(SUCCEEDED(result));
 
-	m_pFieldSwapper->AddField(m_pAnimationTextureVectorField, m_pAnimationTextureVectorFieldSRV);
+	swapper->AddField(m_pAnimationTextureVectorField, m_pAnimationTextureVectorFieldSRV);
 
 	return result;
 }
@@ -1290,11 +1291,20 @@ void Renderer::RenderScene()
 	m_pContext->RSSetState(m_pRasterizerState);
 	m_pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	// std::vector<ID3D11ShaderResourceView*> texts{m_pPingPong->TargetSRV(), m_pTextureNMSRV, m_pFieldSwapper->FieldSRVByIndex(0)};
-	std::vector<ID3D11ShaderResourceView*> texts{m_pPingPong->TargetSRV(), m_pOriginTextureSRV, m_pFieldSwapper->CurrentVectorFieldSRV()};
-	// ID3D11ShaderResourceView* s = m_pFieldSwapper->CurrentVectorFieldSRV();
-
+	// std::vector<ID3D11ShaderResourceView*> texts{ m_pOriginTextureSRV, m_pPingPong->TargetSRV(), m_pFieldSwapper->CurrentVectorFieldSRV()};
+	std::vector<ID3D11ShaderResourceView*> texts{
+		m_pAnimationTexture->GetBackgroundTextureSRV(),
+		m_pAnimationTexture->GetLayersTargetTexturesSRV()[0], // m_pPingPong->TargetSRV(),
+		// m_pFieldSwapper->CurrentVectorFieldSRV(),
+		m_pAnimationTexture->GetFields()[0]->CurrentVectorFieldSRV()
+	};
 	m_pContext->PSSetShaderResources(0, 3, texts.data());
+
+	texts = {
+		m_pAnimationTexture->GetLayersTargetTexturesSRV()[1],
+		m_pAnimationTexture->GetFields()[1]->CurrentVectorFieldSRV()
+	};
+	m_pContext->PSSetShaderResources(3, texts.size(), texts.data());
 
 	ID3D11SamplerState* samplers[] = {m_pSamplerState};
 	m_pContext->PSSetSamplers(0, 1, samplers);
@@ -1410,7 +1420,8 @@ void Renderer::RenderTexture()
 	m_pContext->RSSetState(m_pRasterizerState);
 	m_pContext->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	ID3D11ShaderResourceView* textures[3] = { m_pPingPong->SourceSRV(), 
+	ID3D11ShaderResourceView* textures[3] = {
+		m_pAnimationTexture->GetLayersSourceTexturesSRV()[0], // m_pPingPong->SourceSRV(), 
 		m_pFieldSwapper->CurrentVectorFieldSRV(),
 		m_pFieldSwapper->FieldSRVByIndex(1),
 	};

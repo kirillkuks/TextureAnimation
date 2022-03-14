@@ -9,6 +9,7 @@
 
 #include "Mesh.h"
 #include "Texture.h"
+#include "AnimationTexture.h"
 
 using namespace DirectX;
 
@@ -37,7 +38,6 @@ private:
 
 	// float scale_factor = 0.0005f;
 	float scale_factor = 1;
-
 
 private:
 	std::vector<unsigned char> LoadData(std::string const& filename) const;
@@ -77,4 +77,6 @@ public:
 	void SetOriginTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV);   // Change
 	void SetShaderResources(std::vector<ID3D11ShaderResourceView*> const& resources);   // Change
 	void SetConstantBuffers(std::vector<ID3D11Buffer*> const& buffers);   // Change
+
+	void SetTextures(std::vector<AnimationTexture*> const& textures);
 };

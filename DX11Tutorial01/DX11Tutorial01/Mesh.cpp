@@ -140,6 +140,11 @@ void Mesh::SetTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textur
 	m_pTextureSRV = textureSRV;   // Change
 }
 
+void Mesh::SetTexture(AnimationTexture* texture)
+{
+	m_pAnimationTexture = texture;
+}
+
 void Mesh::SetOriginTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV)
 {
 	m_pOriginTexture = texture;
@@ -170,15 +175,22 @@ void Mesh::Draw(XMMATRIX matrix, XMMATRIX sceneMatrix)
 	m_pContext->VSSetShader(m_pVertexShader, NULL, 0);
 	m_pContext->PSSetShader(m_pPixelShader, NULL, 0);
 
-	ID3D11ShaderResourceView* textures[] = { m_pTextureSRV, m_pOriginTextureSRV };
+	// Как лучше?
+	auto texts = m_pAnimationTexture->GetLayersTargetTexturesSRV();
+	ID3D11ShaderResourceView* textures[] = { m_pAnimationTexture->GetBackgroundTextureSRV(), texts[0] };
 	m_pContext->PSSetShaderResources(0, 2, textures);
-
 	{
 		if (m_aShaderResources.size() > 0)
 		{
 			m_pContext->PSSetShaderResources(2, m_aShaderResources.size(), m_aShaderResources.data());
 		}
 	}
+	std::vector<ID3D11ShaderResourceView*> textures1 = { texts[1], m_pAnimationTexture->GetFields()[1]->CurrentVectorFieldSRV() };
+	m_pContext->PSSetShaderResources(3, textures1.size(), textures1.data());
+
+	// В планах | массив текстур?
+	// auto textures = m_pAnimationTexture->GetLayersTargetTexturesSRV();
+	// m_pContext->PSSetShaderResources(1, textures.size(), textures.data());
 
 	// Change
 	CBuffer cb;

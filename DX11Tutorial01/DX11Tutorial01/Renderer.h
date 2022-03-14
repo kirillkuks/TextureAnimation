@@ -42,7 +42,7 @@ private:
 
 	HRESULT SetupAnimationTextureBuffer();
 	HRESULT CreateAnimationTexturesResources();
-	HRESULT CreateVectorFieldTexture();
+	HRESULT CreateVectorFieldTexture(FieldSwapper* swapper);
 	void RenderTexture();
 
 	ID3D11VertexShader* CreateVertexShader(LPCTSTR shaderSource, ID3DBlob** ppBlob);
@@ -131,7 +131,7 @@ private:
 
 	size_t m_esec = 0;
 
-	float m_frameLength = 1.0f / 1.0f;
+	float m_frameLength = 1.0f / 0.1f;
 
 	float m_lon;
 	float m_lat;

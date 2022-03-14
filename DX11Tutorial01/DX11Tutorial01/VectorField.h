@@ -30,4 +30,6 @@ public:
 	void setCircleField();
 	void setSinField();
 	void setField();
+
+	void setSnakeField();
 };

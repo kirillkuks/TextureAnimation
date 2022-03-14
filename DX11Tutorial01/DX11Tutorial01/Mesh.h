@@ -6,6 +6,9 @@
 #include <dxgi.h>
 #include <DirectXMath.h>
 
+#include "Texture.h"
+#include "AnimationTexture.h"
+
 using namespace DirectX;
 
 struct Vertex
@@ -57,6 +60,8 @@ private:
 	std::vector<ID3D11ShaderResourceView*> m_aShaderResources;
 	std::vector<ID3D11Buffer*> m_aConstantBuffers;
 
+	AnimationTexture* m_pAnimationTexture;
+
 public:
 	Mesh(ID3D11Device* const& device, 
 		ID3D11DeviceContext* const& context, 
@@ -75,5 +80,5 @@ public:
 
 	void Draw(XMMATRIX matrix, XMMATRIX sceneMatrix);
 
-
+	void SetTexture(AnimationTexture* texture);
 };

@@ -83,7 +83,7 @@ VectorField* VectorField::customField(size_t width, size_t height)
 	{
 		for (size_t j = 0; j < height; ++j)
 		{
-			field->field[i][j].first = 1000;
+			field->field[i][j].first = 20;
 			field->field[i][j].second = 0;
 		}
 	}
@@ -282,13 +282,7 @@ void VectorField::setDiagField(size_t turnsNum)
 
 		for (size_t j = 0; j < y; ++j)
 		{
-			// field[i][j] = std::make_pair(field[i][j].first, 1 * direction);
 			field[i][j].second = 1 * direction;
-
-			/*if (i > x / 2)
-			{
-				field[i][j] = std::make_pair(2, 0);
-			}*/
 		}
 	}
 }
@@ -355,7 +349,6 @@ void VectorField::setSinField()
 	}
 }
 
-
 void VectorField::setField()
 {
 	size_t x = field.size();
@@ -367,6 +360,29 @@ void VectorField::setField()
 		{
 			field[i][j].first = (int)(100 * sin(3.141 * j / (float(y) / 2)));
 			field[i][j].second = 0;
+		}
+	}
+}
+
+void VectorField::setSnakeField()
+{
+	size_t x = field.size();
+	size_t y = field[0].size();
+
+	for (size_t i = 0; i < x; ++i)
+	{
+		for (size_t j = 0; j < y; ++j)
+		{
+			field[i][j].first = 0;
+			field[i][j].second = 0;
+		}
+	}
+
+	for (size_t i = 0; i < x; ++i)
+	{
+		for (size_t j = 0; j < 290; ++j)
+		{
+			field[i][j].first = (int)(15 * sin(3.141 * j / (290.0 / 2)));
 		}
 	}
 }
