@@ -36,8 +36,8 @@ private:
 
 	std::string fname;
 
-	// float scale_factor = 0.0005f;
-	float scale_factor = 1;
+	float scale_factor = 0.001f;
+	// float scale_factor = 1;
 
 private:
 	std::vector<unsigned char> LoadData(std::string const& filename) const;

@@ -31,5 +31,8 @@ public:
 	void setSinField();
 	void setField();
 
+	void AddDots1();
+	void AddDots2();
+
 	void setSnakeField();
 };

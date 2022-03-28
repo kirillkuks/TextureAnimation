@@ -469,7 +469,7 @@ bool Renderer::Render()
 	RenderScene();
 
 	HRESULT result = m_pSwapChain->Present(0, 0);
-	// m_pPingPong->Swap();
+	m_pPingPong->Swap();
 	m_pAnimationTexture->Swap();
 	assert(SUCCEEDED(result));
 
@@ -1012,16 +1012,38 @@ HRESULT Renderer::CreateScene()
 		m_pAnimationTexture = new AnimationTexture(m_pDevice, m_pContext, x, y);
 		assert(m_pAnimationTexture != nullptr);
 
-		result = m_pAnimationTexture->AddBackgroundByName("Assets//Sword.jpg");
+		result = m_pAnimationTexture->AddBackgroundByName("Assets//Mat//HalfBlackSword.jpg");
 		assert(SUCCEEDED(result));
 
-		result = m_pAnimationTexture->AddLayerByName("Assets//SwordV15.png");
+		// result = m_pAnimationTexture->AddLayerByName("Assets//SwordV12.png");
+		result = m_pAnimationTexture->AddLayerByName("Assets//Mat//Mat1Inv.jpg");
 		assert(SUCCEEDED(result));
 
-		result = m_pAnimationTexture->AddLayerByName("Assets//SwordV15.png");
+		// result = m_pAnimationTexture->AddLayerByName("Assets//SwordV14.png");
+		result = m_pAnimationTexture->AddLayerByName("Assets//Mat//Mat2Inv.jpg");
 		assert(SUCCEEDED(result));
 
-		FieldSwapper* swapper = new FieldSwapper();
+		FieldSwapper* swapper1 = new FieldSwapper();
+		vectorField = VectorField::loadFromFile("Assets//Mat//Fields//mat1inv.fld");
+		vectorField->AddDots1();
+		// vectorField->invert();
+		CreateVectorFieldTexture(swapper1);
+		swapper1->SetUpStepPerFiled({ 1000 });
+		swapper1->SetUpInterpolateType({ 0 });
+		delete vectorField;
+
+		m_pFieldSwapper = new FieldSwapper();
+		vectorField = VectorField::loadFromFile("Assets//Mat//Fields//mat2inv.fld");
+		vectorField->AddDots2();
+		// vectorField->invert();
+		CreateVectorFieldTexture(m_pFieldSwapper);
+		m_pFieldSwapper->SetUpStepPerFiled({ 1000 });
+		m_pFieldSwapper->SetUpInterpolateType({ 0 });
+		delete vectorField;
+
+		m_pAnimationTexture->SetUpFields({ swapper1, m_pFieldSwapper });
+
+		/*FieldSwapper* swapper = new FieldSwapper();
 		vectorField = VectorField::customField(x, y);
 		vectorField->setSnakeField();
 		vectorField->invert();
@@ -1054,15 +1076,15 @@ HRESULT Renderer::CreateScene()
 			m_pFieldSwapper->SetUpInterpolateType({ 0, 1 });
 
 			// Одно поле
-			/*vectorField = VectorField::customField(2048, 2048);
-			vectorField->invert();
-			CreateVectorFieldTexture();
-			delete vectorField;
+			// vectorField = VectorField::customField(2048, 2048);
+			// vectorField->invert();
+			// CreateVectorFieldTexture();
+			// delete vectorField;
 
-			m_pFieldSwapper->SetUpStepPerFiled({ 1000 });*/
+			// m_pFieldSwapper->SetUpStepPerFiled({ 1000 });
 		}
 	
-		m_pAnimationTexture->SetUpFields({ m_pFieldSwapper, swapper });
+		m_pAnimationTexture->SetUpFields({ m_pFieldSwapper, swapper });*/
 	}
 	if (SUCCEEDED(result))
 	{

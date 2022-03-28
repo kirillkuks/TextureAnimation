@@ -19,14 +19,14 @@ Model::Model(ID3D11Device* const& device, ID3D11DeviceContext* const& context, s
 
 	data = LoadData(filename);
 
-	ParseNode(0, XMMatrixScaling(scale_factor, scale_factor, scale_factor) * XMMatrixTranslation(0, -0.5f, 0));
+	ParseNode(0, XMMatrixScaling(scale_factor, scale_factor, scale_factor) * XMMatrixTranslation(0, -1.0f, 0));
 
 	size_t size = m_aMeshes.size();
 	assert(size == m_aTextures.size());
 
 	for (size_t i = 0; i < m_aMeshes.size(); ++i)
 	{
-		m_aMeshes[i]->SetTexture(m_aTextures[i]->SourceTexture(), m_aTextures[i]->ShaderResourceView());
+		m_aMeshes[i]->SetTexture(m_aTextures[i]);
 	}
 
 	int a = 0;
@@ -49,10 +49,10 @@ void Model::Draw(XMMATRIX sceneMatrix)
 {
 	m_aMeshes[3]->Draw(m_aMatrices[3], sceneMatrix);   // Change
 
-	// for (size_t i = 0; i < m_aMeshes.size(); ++i)
-	// {
-	// 	m_aMeshes[i]->Draw(m_aMatrices[i], sceneMatrix);
-	// }
+	for (size_t i = 0; i < m_aMeshes.size(); ++i)
+	{
+		m_aMeshes[i]->Draw(m_aMatrices[i], sceneMatrix);
+	}
 }
 
 void Model::SetShaders(ID3D11VertexShader* const& vertexShader,

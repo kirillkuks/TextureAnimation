@@ -386,3 +386,69 @@ void VectorField::setSnakeField()
 		}
 	}
 }
+
+void VectorField::AddDots1()
+{
+	std::vector<std::pair<int, int>> srcDots;
+	std::vector<std::pair<int, int>> dstDots;
+
+	for (int j = 25; j < 45; ++j)
+	{
+		for (int i = 40; i < 250; ++i)
+		{
+			srcDots.push_back({ j, i });
+		}
+	}
+
+	for (int j = 650; j > 630; --j)
+	{
+		for (int i = 530; i > 320; --i)
+		{
+			dstDots.push_back({ j, i });
+		}
+	}
+
+	size_t size = srcDots.size();
+	assert(size == dstDots.size());
+
+	for (size_t j = 0; j < size; ++j)
+	{
+		auto& dst = dstDots[j];
+		auto& src = srcDots[j];
+
+		field[dst.first][dst.second] = { src.first - dst.first, src.second - dst.second };
+	}
+}
+
+void VectorField::AddDots2()
+{
+	std::vector<std::pair<int, int>> srcDots;
+	std::vector<std::pair<int, int>> dstDots;
+
+	for (int j = 25; j < 55; ++j)
+	{
+		for (int i = 40; i < 250; ++i)
+		{
+			srcDots.push_back({ j, i });
+		}
+	}
+
+	for (int j = 660; j > 630; --j)
+	{
+		for (int i = 530; i > 320; --i)
+		{
+			dstDots.push_back({ j, i });
+		}
+	}
+
+	size_t size = srcDots.size();
+	assert(size == dstDots.size());
+
+	for (size_t j = 0; j < size; ++j)
+	{
+		auto& dst = dstDots[j];
+		auto& src = srcDots[j];
+
+		field[dst.first][dst.second] = { src.first - dst.first, src.second - dst.second };
+	}
+}

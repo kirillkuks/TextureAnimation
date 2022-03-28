@@ -67,6 +67,11 @@ float2 Line(float t, float2 x1, float2 x2)
 	return t * x1 + (1 - t) * x2;
 }
 
+float2 MatrixCutSwordInterpolation(float t, float2 x1, float2 x2, float shift)
+{
+	return (1 - t) * x1 + t * (x1 - float2(shift, 0));
+}
+
 float2 HalfCircle(float t, float2 x1, float2 x2, float2 vec)
 {
 	float2 newCoord1 = float2(0, 0);
@@ -93,7 +98,7 @@ float2 HalfCircle(float t, float2 x1, float2 x2, float2 vec)
 
 float4 PS(in VSOutput input) : SV_Target0
 {
-	{
+	/*{
 		float d = 1 / 2048.0;
 		float t = scale.x;
 		float pi = 3.14159265359;
@@ -132,8 +137,7 @@ float4 PS(in VSOutput input) : SV_Target0
 		}
 
 		return color;
-	}
-
+	}*/
 
 	float4 color = float4(0, 0, 0, 0);
 
@@ -141,6 +145,7 @@ float4 PS(in VSOutput input) : SV_Target0
 	
 	float ddx = VectorField.Sample(Sampler, coord).r;
 	float ddy = VectorField.Sample(Sampler, coord).g;
+	float2 vec1 = float2(ddx, ddy);
 
 	float2 x2 = input.uv;
 	float2 x1 = x2 + float2(ddx, ddy);
@@ -162,40 +167,46 @@ float4 PS(in VSOutput input) : SV_Target0
 	}
 	else // полукруг
 	{
-		/*t = -pi * t; // или pi * t чтобы в другую сторону
-		float delta_x = (x1.r - x2.r);
-		float delta_y = (x1.g - x2.g);
-
-		float r = sqrt(delta_x * delta_x + delta_y * delta_y) / 2;
-		float2 center = (x1 + x2) / 2;
-
-		float2 bas = float2(1, 0);
-		float2 vec = float2(-ddx, -ddy);
-
-		float angle = (bas.r * vec.r + bas.g * vec.g) / (len(bas) * len(vec));
-		angle = (bas.r * (-ddx) + bas.g * (-ddy)) / (1 * sqrt(ddx * ddx + ddy * ddy));
-		float start = acos(angle);
-
-		newCoord1.r = r * cos(t + start) + center.r;
-		newCoord1.g = r * sin(t + start) + center.g;*/
-
 		newCoord1 = HalfCircle(t, x1, x2, float2(-ddx, -ddy));
 	}
 
 	// Поле для второй текстуры
 	ddx = VectorField2.Sample(Sampler, coord).r;
 	ddy = VectorField2.Sample(Sampler, coord).g;
+	float2 vec2 = float2(ddx, ddy);
+
 	float2 newCoord2 = coord + scale.x * float2(ddx, ddy);
 
 	Texture2D textures[] = { ColorTexture, ColorTexture2 };
 	float2 newCoords[] = { newCoord1, newCoord2 };
+	float2 vecs[] = { VectorField.Sample(Sampler, coord), VectorField2.Sample(Sampler, coord) };
+	// float2 newCoords[] = { coord, coord };
 	int texturesNum = 2;
 
 	float3 layerColor = LayerTexture.Sample(Sampler, coord).rgb;   // фон
 
 	for (int i = texturesNum - 1; i >= 0; --i)
 	{
-		float3 matColor = textures[i].Sample(Sampler, newCoords[i]).rgb;
+		// float3 srcColor = textures[i].Sample(Sampler, newCoords[i]).rgb;
+		// float3 dstColor = textures[i].Sample(Sampler, newCoords[i] - float2(ddx, ddy)).rgb;
+
+		// Пока так определяю тип интерполяции (не работает)
+		float2 c = newCoords[i];
+
+		float2 xx = input.uv;
+		float d = 1 / 2048.0;
+
+		if (xx.x >= 630 * d && xx.x <= 660 * d)
+		{
+			if (xx.y >= 323 * d && xx.y <= 533 * d)
+			{
+				c = coord;
+				// c = MatrixCutSwordInterpolation(t, x2, x1, 30 * d);
+			}
+		}
+
+		float3 matColor = textures[i].Sample(Sampler, c).rgb;
+		// float3 matColor = srcColor * t + dstColor * (1 - t);
 		
 		if (matColor.r != 0 || matColor.g != 0 || matColor.b != 0)  // :-(
 		{

@@ -5,17 +5,38 @@
 #include <DirectXMath.h>
 
 #include <string>
+#include <vector>
+
+#include "FieldSwapper.h"
 
 class Texture
 {
-private:
-	ID3D11Texture2D* m_pTexture;
-	ID3D11ShaderResourceView* m_pTextureSRV;
+protected:
+	struct TextureResources
+	{
+	public:
+		ID3D11Texture2D* m_pTexture;
+		ID3D11ShaderResourceView* m_pTextureSRV;
+
+	public:
+		TextureResources() = default;
+		~TextureResources();
+	};
+
+protected:
+	UINT m_iWidth;
+	UINT m_iHeight;
+
+	TextureResources* m_pBackgroundTexture;
 
 public:
+	Texture(ID3D11Device* device, ID3D11DeviceContext* context, UINT width, UINT height);
 	Texture(ID3D11Device* device, ID3D11DeviceContext* context, std::string const& filename);
 	~Texture();
 
-	ID3D11Texture2D* const SourceTexture() const;
-	ID3D11ShaderResourceView* const ShaderResourceView() const;
+	ID3D11Texture2D* const GetBackgroundTexture() const;
+	ID3D11ShaderResourceView* const GetBackGroundTextureSRV() const;
+
+	virtual std::vector<ID3D11ShaderResourceView*> GetLayersTargetTexturesSRV() const;
+	virtual std::vector<FieldSwapper*> GetFields() const;
 };

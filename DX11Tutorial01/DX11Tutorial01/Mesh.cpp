@@ -5,11 +5,12 @@ Mesh::Mesh(ID3D11Device* const& device,
 	std::vector<Vertex> const& vertecies, 
 	std::vector<UINT16> const& indeces)
 	: m_pDevice{ device }, m_pContext{ context },
-	m_pVertexBuffer{ NULL }, m_pIndexBuffer{ NULL },
-	m_pVertexShader{ NULL }, m_pPixelShader{ NULL }, 
-	m_pInputLayout{ NULL }, m_pConstantBuffer{ NULL },
-	m_pRasterizerState{ NULL }, m_pSceneBuffer{ NULL },
-	m_pTexture{ NULL }, m_pTextureSRV{ NULL }
+	m_pVertexBuffer{ nullptr }, m_pIndexBuffer{ nullptr },
+	m_pVertexShader{ nullptr }, m_pPixelShader{ nullptr },
+	m_pInputLayout{ nullptr }, m_pConstantBuffer{ nullptr },
+	m_pRasterizerState{ nullptr }, m_pSceneBuffer{ nullptr },
+	m_pTexture{ nullptr }, m_pTextureSRV{ nullptr },
+	m_pAnimationTexture{ nullptr }
 {
 	indexCount = indeces.size();
 
@@ -136,19 +137,20 @@ void Mesh::SetShaders(ID3D11VertexShader* const& vertexShader,
 
 void Mesh::SetTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV)
 {
-	m_pTexture = texture;   // Change
-	m_pTextureSRV = textureSRV;   // Change
 }
 
 void Mesh::SetTexture(AnimationTexture* texture)
 {
-	m_pAnimationTexture = texture;
+	m_pTexture = texture;
+}
+
+void Mesh::SetTexture(Texture* texture)
+{
+	m_pTexture = texture;
 }
 
 void Mesh::SetOriginTexture(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV)
 {
-	m_pOriginTexture = texture;
-	m_pOriginTextureSRV = textureSRV;
 }
 
 void Mesh::SetShaderResources(std::vector<ID3D11ShaderResourceView*> const& resources)
@@ -176,17 +178,34 @@ void Mesh::Draw(XMMATRIX matrix, XMMATRIX sceneMatrix)
 	m_pContext->PSSetShader(m_pPixelShader, NULL, 0);
 
 	// Как лучше?
-	auto texts = m_pAnimationTexture->GetLayersTargetTexturesSRV();
-	ID3D11ShaderResourceView* textures[] = { m_pAnimationTexture->GetBackgroundTextureSRV(), texts[0] };
-	m_pContext->PSSetShaderResources(0, 2, textures);
+	/// auto texts = m_pAnimationTexture->GetLayersTargetTexturesSRV();
+	/// auto fields = m_pAnimationTexture->GetFields();
+	/// ID3D11ShaderResourceView* textures[] = { m_pAnimationTexture->GetBackgroundTextureSRV(), texts[0], fields[0]->CurrentVectorFieldSRV() };
+	auto texts = m_pTexture->GetLayersTargetTexturesSRV();
+	auto fields = m_pTexture->GetFields();
+
+	size_t size = texts.size();
+	assert(size == fields.size());
+
+	ID3D11ShaderResourceView* textures[] = { m_pTexture->GetBackGroundTextureSRV() };
+	m_pContext->PSSetShaderResources(0, 1, textures);
+
+	for (size_t i = 0; i < size; ++i)
 	{
-		if (m_aShaderResources.size() > 0)
-		{
-			m_pContext->PSSetShaderResources(2, m_aShaderResources.size(), m_aShaderResources.data());
-		}
+		ID3D11ShaderResourceView* animationTexturesResources[] = { texts[i], fields[i]->CurrentVectorFieldSRV() };
+		m_pContext->PSSetShaderResources(2 * i + 1, 2, animationTexturesResources);
 	}
-	std::vector<ID3D11ShaderResourceView*> textures1 = { texts[1], m_pAnimationTexture->GetFields()[1]->CurrentVectorFieldSRV() };
-	m_pContext->PSSetShaderResources(3, textures1.size(), textures1.data());
+	/*if (size == 0)
+	{
+		ID3D11ShaderResourceView* animationTexturesResources[] = { nullptr, nullptr, nullptr, nullptr };
+		m_pContext->PSSetShaderResources(1, 4, animationTexturesResources);
+	}*/
+
+	/// ID3D11ShaderResourceView* textures[] = { nullptr, nullptr, nullptr };
+	/// m_pContext->PSSetShaderResources(0, 3, textures);
+	/// std::vector<ID3D11ShaderResourceView*> textures1 = { texts[1], fields[1]->CurrentVectorFieldSRV() };
+	/// std::vector<ID3D11ShaderResourceView*> textures1 = { nullptr, nullptr };
+	/// m_pContext->PSSetShaderResources(3, textures1.size(), textures1.data());
 
 	// В планах | массив текстур?
 	// auto textures = m_pAnimationTexture->GetLayersTargetTexturesSRV();
@@ -196,9 +215,8 @@ void Mesh::Draw(XMMATRIX matrix, XMMATRIX sceneMatrix)
 	CBuffer cb;
 	XMMATRIX tranlation = XMMatrixTranslation(0, 0, -7);
 	XMMATRIX rotation = XMMatrixRotationX(90);
-	cb.meshMatrix = XMMatrixTranspose(tranlation * rotation);
-	// cb.meshMatrix = XMMatrixTranspose(matrix);
-	// cb.meshMatrix = XMMatrixIdentity();
+	// cb.meshMatrix = XMMatrixTranspose(tranlation * rotation);
+	cb.meshMatrix = XMMatrixTranspose(matrix);
 	cb.normalMatrix = XMMatrixIdentity();
 	m_pContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &cb, 0, 0);
 

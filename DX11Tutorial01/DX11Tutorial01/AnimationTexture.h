@@ -6,31 +6,17 @@
 #include <vector>
 #include <string>
 
+#include "Texture.h"
 #include "FieldSwapper.h"
 #include "PingPong.h"
 
-class AnimationTexture // : public Texture
+
+class AnimationTexture : public Texture
 {
 private:
-	struct TextureResources
-	{
-	public:
-		ID3D11Texture2D* m_pTexture;
-		ID3D11ShaderResourceView* m_pTextureSRV;
-
-	public:
-		TextureResources() = default;
-		~TextureResources();
-	};
-
-private:
-	UINT m_iWidth;
-	UINT m_iHeight;
-
 	ID3D11Device* m_pDevice;
 	ID3D11DeviceContext* m_pContext;
 
-	TextureResources* m_pBackgroudTexture;
 	std::vector<PingPong*> m_aLayerTextures;
 	std::vector<FieldSwapper*> m_aFieldSwappers;
 
@@ -46,6 +32,7 @@ private:
 
 public:
 	AnimationTexture(ID3D11Device* device, ID3D11DeviceContext* context, UINT width, UINT height);
+	AnimationTexture(ID3D11Device* device, ID3D11DeviceContext* context, std::string const& filename);
 	~AnimationTexture();
 
 	HRESULT CreateAnimationTextureResources(std::string const& vertexShader, std::string const& pixelShader);
@@ -54,11 +41,11 @@ public:
 	ID3D11Texture2D* GetBackgroundTexture() const;
 
 	std::vector<ID3D11ShaderResourceView*> GetLayersSourceTexturesSRV() const;
-	std::vector<ID3D11ShaderResourceView*> GetLayersTargetTexturesSRV() const;
+	std::vector<ID3D11ShaderResourceView*> GetLayersTargetTexturesSRV() const override;
 	std::vector<ID3D11RenderTargetView*> GetLayersTexturesRTV() const;
 	std::vector<ID3D11Texture2D*> GetLayersTextures() const;
 
-	std::vector<FieldSwapper*> GetFields() const;
+	std::vector<FieldSwapper*> GetFields() const override;
 
 	void AddBackground(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV);
 	void AddLayer(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV, ID3D11RenderTargetView* textureRTV);

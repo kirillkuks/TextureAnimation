@@ -51,16 +51,13 @@ private:
 
 	ID3D11RasterizerState* m_pRasterizerState;
 
-	ID3D11Texture2D* m_pTexture;
 	ID3D11ShaderResourceView* m_pTextureSRV;
-
-	ID3D11Texture2D* m_pOriginTexture;
-	ID3D11ShaderResourceView* m_pOriginTextureSRV;
 
 	std::vector<ID3D11ShaderResourceView*> m_aShaderResources;
 	std::vector<ID3D11Buffer*> m_aConstantBuffers;
 
 	AnimationTexture* m_pAnimationTexture;
+	Texture* m_pTexture;
 
 public:
 	Mesh(ID3D11Device* const& device, 
@@ -81,4 +78,5 @@ public:
 	void Draw(XMMATRIX matrix, XMMATRIX sceneMatrix);
 
 	void SetTexture(AnimationTexture* texture);
+	void SetTexture(Texture* texture);
 };

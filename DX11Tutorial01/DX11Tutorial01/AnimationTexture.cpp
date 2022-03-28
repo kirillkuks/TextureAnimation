@@ -29,9 +29,9 @@ AnimationTexture::TextureResources::~TextureResources()
 	SAFE_RELEASE(m_pTextureSRV);
 }
 
-AnimationTexture::AnimationTexture(ID3D11Device* device, ID3D11DeviceContext* context, UINT width, UINT height) 
-	: m_pDevice{ device }, m_pContext{ context }, m_iWidth{ width }, m_iHeight{ height },
-	m_pBackgroudTexture{ nullptr },
+AnimationTexture::AnimationTexture(ID3D11Device* device, ID3D11DeviceContext* context, UINT width, UINT height)
+	: Texture(device, context, width, height), 
+	m_pDevice{ device }, m_pContext{ context },
 	m_pVertexBuffer{ nullptr }, m_pIndexBuffer{ nullptr }, m_pInputLayout{ nullptr },
 	m_pVertexShader{ nullptr }, m_pPixelShader{ nullptr }, m_pDepthStencilView{ nullptr }
 {
@@ -170,12 +170,12 @@ HRESULT AnimationTexture::CreateAnimationTextureResources(std::string const& ver
 
 ID3D11ShaderResourceView* AnimationTexture::GetBackgroundTextureSRV() const
 {
-	return m_pBackgroudTexture->m_pTextureSRV;
+	return m_pBackgroundTexture->m_pTextureSRV;
 }
 
 ID3D11Texture2D* AnimationTexture::GetBackgroundTexture() const
 {
-	return m_pBackgroudTexture->m_pTexture;
+	return m_pBackgroundTexture->m_pTexture;
 }
 
 std::vector<ID3D11ShaderResourceView*> AnimationTexture::GetLayersSourceTexturesSRV() const
@@ -235,16 +235,16 @@ void AnimationTexture::AddBackground(ID3D11Texture2D* texture, ID3D11ShaderResou
 {
 	assert(texture != nullptr && textureSRV != nullptr);
 
-	if (m_pBackgroudTexture != nullptr)
+	if (m_pBackgroundTexture != nullptr)
 	{
-		delete m_pBackgroudTexture;
+		delete m_pBackgroundTexture;
 	}
 
-	m_pBackgroudTexture = new TextureResources();
-	assert(m_pBackgroudTexture);
+	m_pBackgroundTexture = new TextureResources();
+	assert(m_pBackgroundTexture);
 
-	m_pBackgroudTexture->m_pTexture = texture;
-	m_pBackgroudTexture->m_pTextureSRV = textureSRV;
+	m_pBackgroundTexture->m_pTexture = texture;
+	m_pBackgroundTexture->m_pTextureSRV = textureSRV;
 }
 
 void AnimationTexture::AddLayer(ID3D11Texture2D* texture, ID3D11ShaderResourceView* textureSRV, ID3D11RenderTargetView* textureRTV)
