@@ -49,10 +49,10 @@ void Model::Draw(XMMATRIX sceneMatrix)
 {
 	m_aMeshes[3]->Draw(m_aMatrices[3], sceneMatrix);   // Change
 
-	for (size_t i = 0; i < m_aMeshes.size(); ++i)
-	{
-		m_aMeshes[i]->Draw(m_aMatrices[i], sceneMatrix);
-	}
+	// for (size_t i = 0; i < m_aMeshes.size(); ++i)
+	// {
+	// 	m_aMeshes[i]->Draw(m_aMatrices[i], sceneMatrix);
+	// }
 }
 
 void Model::SetShaders(ID3D11VertexShader* const& vertexShader,

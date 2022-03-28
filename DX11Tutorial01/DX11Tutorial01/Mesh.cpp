@@ -215,8 +215,8 @@ void Mesh::Draw(XMMATRIX matrix, XMMATRIX sceneMatrix)
 	CBuffer cb;
 	XMMATRIX tranlation = XMMatrixTranslation(0, 0, -7);
 	XMMATRIX rotation = XMMatrixRotationX(90);
-	// cb.meshMatrix = XMMatrixTranspose(tranlation * rotation);
-	cb.meshMatrix = XMMatrixTranspose(matrix);
+	cb.meshMatrix = XMMatrixTranspose(tranlation * rotation);
+	// cb.meshMatrix = XMMatrixTranspose(matrix);
 	cb.normalMatrix = XMMatrixIdentity();
 	m_pContext->UpdateSubresource(m_pConstantBuffer, 0, NULL, &cb, 0, 0);
 
