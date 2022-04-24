@@ -7,6 +7,7 @@ class VectorField
 	using elem_t = std::pair<int, int>;
 private:
 	std::vector<std::vector<elem_t>> field;
+	std::vector<std::vector<elem_t>> transformField;
 
 public:
 	static VectorField* loadFromFile(std::string const& filename);

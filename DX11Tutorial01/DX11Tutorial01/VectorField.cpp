@@ -100,7 +100,9 @@ VectorField* VectorField::customField(size_t width, size_t height)
 	return field;
 }
 
-VectorField::VectorField(size_t x, size_t y) : field(x, std::vector<std::pair<int, int>>(y, { 0, 0 }))
+VectorField::VectorField(size_t x, size_t y)
+	: field(x, std::vector<std::pair<int, int>>(y, { 0, 0 })),
+	transformField(x, std::vector<std::pair<int, int>>(y, { 0, 0 }))
 {
 	// setHalfSpeedTransformField(2);
 	// setDiagField(4);
@@ -166,7 +168,9 @@ float* VectorField::raw_data() const
 	size_t x = field.size();
 	size_t y = field[0].size();
 
-	float* srcData = new float[2 * x * y];
+	size_t n = 4;
+
+	float* srcData = new float[n * x * y];
 	assert(srcData);
 
 	for (size_t i = 0; i < x; ++i)
@@ -175,8 +179,24 @@ float* VectorField::raw_data() const
 			float q = (float)field[i][j].first / (float)x;
 			float p = (float)field[i][j].second / (float)y;
 
-			srcData[2 * (i + j * x) + 0] = q;
-			srcData[2 * (i + j * x) + 1] = p;
+			srcData[n * (i + j * x) + 0] = q;
+			srcData[n * (i + j * x) + 1] = p;
+
+			// пока так
+			if (p > 0 || p < 0)
+			{
+				srcData[n * (i + j * x) + 2] = 1.0f;
+			}
+			else
+			{
+				srcData[n * (i + j * x) + 2] = 0.0f;
+			}
+
+			float transformQ = (float)transformField[i][j].first / (float)x;
+			float transformP = (float)transformField[i][j].second / (float)y;
+
+			srcData[n * (i + j * x) + 2] = transformQ;
+			srcData[n * (i + j * x) + 3] = transformP;
 		}
 	}
 
@@ -400,7 +420,7 @@ void VectorField::AddDots1()
 		}
 	}
 
-	for (int j = 650; j > 630; --j)
+	for (int j = 649; j > 629; --j)
 	{
 		for (int i = 530; i > 320; --i)
 		{
@@ -417,6 +437,7 @@ void VectorField::AddDots1()
 		auto& src = srcDots[j];
 
 		field[dst.first][dst.second] = { src.first - dst.first, src.second - dst.second };
+		transformField[dst.first][dst.second] = { src.first - dst.first, src.second - dst.second };
 	}
 }
 
@@ -425,17 +446,43 @@ void VectorField::AddDots2()
 	std::vector<std::pair<int, int>> srcDots;
 	std::vector<std::pair<int, int>> dstDots;
 
+	/// :(
+	for (size_t i = 0; i < field.size(); ++i)
+	{
+		for (size_t j = 0; j < field[i].size(); ++j)
+		{
+			transformField[i][j].first = field[i][j].first;
+			transformField[i][j].second = field[i][j].second;
+		}
+	}
+
 	for (int j = 25; j < 55; ++j)
 	{
-		for (int i = 40; i < 250; ++i)
+		for (int i = 40; i < 150; ++i)
 		{
 			srcDots.push_back({ j, i });
 		}
 	}
 
-	for (int j = 660; j > 630; --j)
+	for (int j = 25; j < 55; ++j)
 	{
-		for (int i = 530; i > 320; --i)
+		for (int i = 150; i < 250; ++i)
+		{
+			srcDots.push_back({ j, i });
+		}
+	}
+
+	for (int j = 659; j > 629; --j)
+	{
+		for (int i = 530; i > 420; --i)
+		{
+			dstDots.push_back({ j, i });
+		}
+	}
+
+	for (int j = 655; j > 625; --j)
+	{
+		for (int i = 420; i > 320; --i)
 		{
 			dstDots.push_back({ j, i });
 		}
@@ -450,5 +497,8 @@ void VectorField::AddDots2()
 		auto& src = srcDots[j];
 
 		field[dst.first][dst.second] = { src.first - dst.first, src.second - dst.second };
+		transformField[dst.first][dst.second] = { -field[src.first][src.second].first, -field[src.first][src.second].second };
 	}
+
+	int a = 1;
 }

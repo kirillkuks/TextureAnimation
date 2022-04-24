@@ -179,6 +179,7 @@ float4 PS(in VSOutput input) : SV_Target0
 
 	Texture2D textures[] = { ColorTexture, ColorTexture2 };
 	float2 newCoords[] = { newCoord1, newCoord2 };
+	Texture2D fields[] = { VectorField, VectorField2 };
 	float2 vecs[] = { VectorField.Sample(Sampler, coord), VectorField2.Sample(Sampler, coord) };
 	// float2 newCoords[] = { coord, coord };
 	int texturesNum = 2;
@@ -196,13 +197,41 @@ float4 PS(in VSOutput input) : SV_Target0
 		float2 xx = input.uv;
 		float d = 1 / 2048.0;
 
-		if (xx.x >= 630 * d && xx.x <= 660 * d)
+		ddx = fields[i].Sample(Sampler, coord).r;
+		ddy = fields[i].Sample(Sampler, coord).g;
+
+		float transformddx = fields[i].Sample(Sampler, coord).b;
+		float transformddy = fields[i].Sample(Sampler, coord).a;
+
+		float interpolateType = fields[i].Sample(Sampler, coord).b;
+
+		// if (abs(transformddx) > 0.0)
 		{
-			if (xx.y >= 323 * d && xx.y <= 533 * d)
+			float2 xxx = input.uv;
+
+			if (xxx.y > 320 * d && xxx.y <= 530 * d)
 			{
-				c = coord;
-				// c = MatrixCutSwordInterpolation(t, x2, x1, 30 * d);
+				c = (1 - t) * input.uv + t * (input.uv + float2(transformddx, transformddy));
+
+				if (xxx.x > 625 * d && xxx.x <= 655 * d)
+				{
+					float2 xx2 = input.uv + float2(ddx, ddy) + float2(-30 * d, 0);   // src
+					float2 xx1 = xx2 - float2(-30 * d, 0);   // dst
+					c = t * xx1 + (1 - t) * xx2;
+					c = input.uv + float2(transformddx, transformddy) + (1 - t) * float2(
+						-fields[i].Sample(Sampler, input.uv + float2(transformddx, transformddy)).r,
+						-fields[i].Sample(Sampler, input.uv + float2(transformddx, transformddy)).g
+						);
+
+					// c = input.uv + float2(transformddx, transformddy);
+
+					c = input.uv + float2(ddx, ddy) + (1 - t) * float2(transformddx, transformddy);
+
+					// return float4(1, 0, 0, 1);
+				}
 			}
+
+			// return float4(0, 1, 0, 1);
 		}
 
 		float3 matColor = textures[i].Sample(Sampler, c).rgb;
@@ -213,6 +242,7 @@ float4 PS(in VSOutput input) : SV_Target0
 			color.xyz = matColor;
 			break;
 		}
+
 
 		color.xyz = layerColor;
 	}

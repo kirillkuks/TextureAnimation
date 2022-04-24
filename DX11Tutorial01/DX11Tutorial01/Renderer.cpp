@@ -1016,7 +1016,7 @@ HRESULT Renderer::CreateScene()
 		assert(SUCCEEDED(result));
 
 		// result = m_pAnimationTexture->AddLayerByName("Assets//SwordV12.png");
-		result = m_pAnimationTexture->AddLayerByName("Assets//Mat//Mat1Inv.jpg");
+		result = m_pAnimationTexture->AddLayerByName("Assets//Mat//Mat2Inv.jpg");
 		assert(SUCCEEDED(result));
 
 		// result = m_pAnimationTexture->AddLayerByName("Assets//SwordV14.png");
@@ -1041,7 +1041,7 @@ HRESULT Renderer::CreateScene()
 		m_pFieldSwapper->SetUpInterpolateType({ 0 });
 		delete vectorField;
 
-		m_pAnimationTexture->SetUpFields({ swapper1, m_pFieldSwapper });
+		m_pAnimationTexture->SetUpFields({ m_pFieldSwapper, m_pFieldSwapper });
 
 		/*FieldSwapper* swapper = new FieldSwapper();
 		vectorField = VectorField::customField(x, y);
@@ -1110,7 +1110,7 @@ HRESULT Renderer::CreateScene()
 HRESULT Renderer::CreateVectorFieldTexture(FieldSwapper* swapper)
 {
 	D3D11_TEXTURE2D_DESC desc = {};
-	desc.Format = DXGI_FORMAT_R32G32_FLOAT;
+	desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	desc.ArraySize = 1;
 	desc.MipLevels = 1;
 	desc.Usage = D3D11_USAGE_DEFAULT;
@@ -1124,7 +1124,7 @@ HRESULT Renderer::CreateVectorFieldTexture(FieldSwapper* swapper)
 
 	D3D11_SUBRESOURCE_DATA initData = {};
 	initData.pSysMem = vectorField->raw_data();
-	initData.SysMemPitch = 2u * image->Width() * sizeof(float);
+	initData.SysMemPitch = 4u * image->Width() * sizeof(float);
 	initData.SysMemSlicePitch = 0;
 
 	HRESULT result = m_pDevice->CreateTexture2D(&desc, &initData, &m_pAnimationTextureVectorField);

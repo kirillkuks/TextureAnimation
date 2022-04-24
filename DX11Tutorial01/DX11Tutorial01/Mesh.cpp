@@ -213,7 +213,7 @@ void Mesh::Draw(XMMATRIX matrix, XMMATRIX sceneMatrix)
 
 	// Change
 	CBuffer cb;
-	XMMATRIX tranlation = XMMatrixTranslation(0, 0, -7);
+	XMMATRIX tranlation = XMMatrixTranslation(0, 0, -9.5);
 	XMMATRIX rotation = XMMatrixRotationX(90);
 	cb.meshMatrix = XMMatrixTranspose(tranlation * rotation);
 	// cb.meshMatrix = XMMatrixTranspose(matrix);
